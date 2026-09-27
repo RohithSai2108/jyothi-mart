@@ -136,14 +136,32 @@ export default function LocationPickerModal({ isOpen, onClose }) {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
-                <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-red-700">Outside Delivery Zone</p>
-                  <p className="text-[11px] text-red-600">
-                    {localDistance ? `${localDistance} km away — ` : ''}We deliver within {radiusKm} km of Jyothi Mart
-                  </p>
+              <div className="flex flex-col gap-2 mb-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-red-700">Outside Delivery Zone</p>
+                    <p className="text-[11px] text-red-600">
+                      {localDistance ? `${localDistance} km away — ` : ''}We deliver within Metpally area
+                    </p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (storeCenter) {
+                      handleLocationChange(storeCenter.lat, storeCenter.lng, {
+                        short: 'Metpally Town, Telangana',
+                        formatted: 'Metpally Town, Jagtial District, Telangana',
+                        locality: 'Metpally',
+                        city: 'Metpally',
+                      });
+                    }
+                  }}
+                  className="w-full py-2 bg-[#0C831F] text-white rounded-lg text-xs font-bold hover:bg-green-700 transition cursor-pointer"
+                >
+                  Deliver to Metpally Store Area (10-15 mins)
+                </button>
               </div>
             )}
 
