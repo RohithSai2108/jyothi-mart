@@ -2,8 +2,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ChevronRight, PackageOpen, Layers, Sparkles } from 'lucide-react';
-import { getCatalog, getCategories, getSubcategories } from '@/lib/api';
+import { ArrowLeft, ChevronRight, PackageOpen, Layers } from 'lucide-react';
+import { getCatalog, getCategories, getSubcategories, getCachedData, setCachedData } from '@/lib/api';
 import ItemCard from '@/components/home/ItemCard';
 import { SkeletonCard } from '@/components/common/Skeleton';
 
@@ -13,24 +13,72 @@ export default function CategoryPage() {
   const router = useRouter();
   const rawId = params?.id ? decodeURIComponent(params.id) : '';
 
-  const [currentCategory, setCurrentCategory] = useState(null);
-  const [subcategories, setSubcategories] = useState([]);
-  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState(searchParams.get('sub') || 'all');
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [itemsLoading, setItemsLoading] = useState(false);
+  // Synchronous cache lookup for instantaneous category rendering
+  const [currentCategory, setCurrentCategory] = useState(() => {
+    if (typeof window !== 'undefined' && rawId) {
+      const cached = getCachedData('categories');
+      const catList = cached?.data || cached || [];
+      if (Array.isArray(catList)) {
+        return (
+          catList.find(
+            (c) =>
+              String(c._id) === rawId ||
+              c.slug === rawId ||
+              c.name?.toLowerCase() === rawId.toLowerCase()
+          ) || null
+        );
+      }
+    }
+    return null;
+  });
 
-  // 1. Load Category and Subcategories
+  const [subcategories, setSubcategories] = useState(() => {
+    if (typeof window !== 'undefined' && rawId) {
+      const cached = getCachedData('categories');
+      const catList = cached?.data || cached || [];
+      if (Array.isArray(catList)) {
+        const matched = catList.find(
+          (c) =>
+            String(c._id) === rawId ||
+            c.slug === rawId ||
+            c.name?.toLowerCase() === rawId.toLowerCase()
+        );
+        if (matched?.subcategories?.length > 0) {
+          return matched.subcategories;
+        }
+      }
+    }
+    return [];
+  });
+
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState(
+    searchParams.get('sub') || 'all'
+  );
+
+  // Synchronous cache lookup for products
+  const [allItems, setAllItems] = useState(() => {
+    if (typeof window !== 'undefined' && rawId) {
+      const cached = getCachedData(`cat_items_${rawId}`);
+      if (Array.isArray(cached)) return cached;
+    }
+    return [];
+  });
+
+  const [loading, setLoading] = useState(() => !currentCategory);
+  const [itemsLoading, setItemsLoading] = useState(() => allItems.length === 0);
+
+  // 1. Load Category and Subcategories (with silent background revalidation)
   useEffect(() => {
     if (!rawId) return;
 
     async function loadCategoryInfo() {
-      setLoading(true);
+      if (!currentCategory) {
+        setLoading(true);
+      }
       try {
         const catRes = await getCategories();
         const catList = catRes.data?.data || catRes.data || [];
 
-        // Match category by _id, slug, or name
         const matched = catList.find(
           (c) =>
             String(c._id) === rawId ||
@@ -40,19 +88,18 @@ export default function CategoryPage() {
 
         if (matched) {
           setCurrentCategory(matched);
-          const subs = Array.isArray(matched.subcategories) && matched.subcategories.length > 0
-            ? matched.subcategories
-            : [];
-          
+          const subs =
+            Array.isArray(matched.subcategories) && matched.subcategories.length > 0
+              ? matched.subcategories
+              : [];
+
           if (subs.length > 0) {
             setSubcategories(subs);
           } else {
-            // Fallback fetch subcategories from API
             const subRes = await getSubcategories(matched._id).catch(() => ({ data: [] }));
             setSubcategories(subRes.data?.data || subRes.data || []);
           }
         } else {
-          // If not in list, construct fallback
           setCurrentCategory({
             _id: rawId,
             name: rawId.replace(/[-_]/g, ' '),
@@ -68,29 +115,42 @@ export default function CategoryPage() {
     loadCategoryInfo();
   }, [rawId]);
 
-  // 2. Fetch Catalog Items for this Category & Subcategory
+  // 2. Fetch all Catalog Items for this Category once, then filter subcategories client-side instantly
   useEffect(() => {
-    if (!currentCategory?._id) return;
+    const targetCatId = currentCategory?._id || rawId;
+    if (!targetCatId) return;
 
-    setItemsLoading(true);
-    const queryParams = { category: currentCategory._id };
-    if (selectedSubcategoryId && selectedSubcategoryId !== 'all') {
-      queryParams.subcategory = selectedSubcategoryId;
+    if (allItems.length === 0) {
+      setItemsLoading(true);
     }
 
-    getCatalog(queryParams)
+    getCatalog({ category: targetCatId })
       .then((res) => {
         const data = res.data?.data || res.data?.items || (Array.isArray(res.data) ? res.data : []);
-        setItems(data);
+        setAllItems(data);
+        setCachedData(`cat_items_${targetCatId}`, data, 120000);
       })
       .catch((err) => {
         console.error('Failed to fetch catalog items for category:', err);
-        setItems([]);
       })
       .finally(() => {
         setItemsLoading(false);
       });
-  }, [currentCategory, selectedSubcategoryId]);
+  }, [currentCategory?._id, rawId]);
+
+  // Instant 0ms subcategory switching via client-side filtering
+  const displayedItems = useMemo(() => {
+    if (!selectedSubcategoryId || selectedSubcategoryId === 'all') {
+      return allItems;
+    }
+    return allItems.filter((item) => {
+      return (
+        String(item.subcategoryId) === String(selectedSubcategoryId) ||
+        (item.subcategoryName &&
+          item.subcategoryName.toLowerCase() === String(selectedSubcategoryId).toLowerCase())
+      );
+    });
+  }, [allItems, selectedSubcategoryId]);
 
   const activeSubcategory = useMemo(() => {
     if (selectedSubcategoryId === 'all') return null;
@@ -129,7 +189,7 @@ export default function CategoryPage() {
           {/* Quick Count Badge */}
           {!itemsLoading && (
             <div className="text-xs font-semibold text-[#0C831F] hidden sm:block">
-              {items.length} {items.length === 1 ? 'item' : 'items'} available
+              {displayedItems.length} {displayedItems.length === 1 ? 'item' : 'items'} available
             </div>
           )}
         </div>
@@ -220,7 +280,7 @@ export default function CategoryPage() {
                 {currentSubTitle}
               </h1>
               <p className="text-xs text-gray-500 mt-0.5">
-                {items.length} {items.length === 1 ? 'product' : 'products'} available in this section
+                {displayedItems.length} {displayedItems.length === 1 ? 'product' : 'products'} available in this section
               </p>
             </div>
             {currentCategory?.image && (
@@ -241,7 +301,7 @@ export default function CategoryPage() {
                 <SkeletonCard key={idx} className="h-64 rounded-2xl" />
               ))}
             </div>
-          ) : items.length === 0 ? (
+          ) : displayedItems.length === 0 ? (
             <div className="bg-white rounded-3xl border border-gray-200 p-8 sm:p-12 text-center flex flex-col items-center justify-center my-auto shadow-2xs">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
                 <PackageOpen className="w-10 h-10" />
@@ -263,7 +323,7 @@ export default function CategoryPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              {items.map((item) => (
+              {displayedItems.map((item) => (
                 <ItemCard
                   key={item._id || item.id}
                   item={item}

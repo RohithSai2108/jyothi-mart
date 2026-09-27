@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getCategories } from '@/lib/api';
+import { getCategories, getCachedData } from '@/lib/api';
 import { ChevronRight, Grid, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -19,15 +19,27 @@ const CATEGORY_COLORS = [
 
 export default function CategoriesPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCachedData('categories');
+      const list = cached?.data || cached || [];
+      if (Array.isArray(list) && list.length > 0) return list;
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => categories.length === 0);
 
   useEffect(() => {
     async function load() {
+      if (categories.length === 0) {
+        setLoading(true);
+      }
       try {
         const res = await getCategories();
         const list = res.data?.data || res.data || [];
-        setCategories(Array.isArray(list) ? list : []);
+        if (Array.isArray(list) && list.length > 0) {
+          setCategories(list);
+        }
       } catch (err) {
         console.error('Failed to load categories:', err);
       } finally {
