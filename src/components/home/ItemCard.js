@@ -9,6 +9,7 @@ import VariantSelectModal from '@/components/home/VariantSelectModal';
 export default function ItemCard({ item, className }) {
   const { items, addItem, removeItem, getItemQty } = useCart();
   const [variantModalOpen, setVariantModalOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const hasVariants = Array.isArray(item.variants) && item.variants.length > 0;
   const isOutOfStock = (() => {
@@ -21,7 +22,18 @@ export default function ItemCard({ item, className }) {
     return false;
   })();
 
-  const displayName = item.displayName || item.name;
+  const displayName = (() => {
+    let name = item.displayName || item.name || '';
+    // Strip raw pricing suffixes e.g. " 160/-", " 10/-", " 5/-"
+    name = name.replace(/\s*\b\d+\/-\s*/g, ' ');
+    // Clean typos like 'cofee' -> 'Coffee'
+    name = name.replace(/\bcofee\b/gi, 'Coffee');
+    if (/^gemini\b/i.test(name) && !/tea/i.test(name)) {
+      name = name.replace(/^gemini/i, 'Gemini Tea');
+    }
+    return name.replace(/\s+/g, ' ').trim() || item.name;
+  })();
+
   const numMrp = Number(item.mrp) || 0;
   const numPrice = Number(item.retailPrice) || 0;
   const hasDiscount = numMrp > 0 && numPrice > 0 && numMrp > numPrice;
@@ -33,25 +45,26 @@ export default function ItemCard({ item, className }) {
     ? (item.variants?.length || 0)
     : (item.variants?.length || 0) + 1;
 
-  // Format unit / pack size display below title (e.g. "85 g", "15 kg/tin", "1 ltr/pkt")
+  // Format unit / pack size display below title (e.g. "500 g", "1 kg", "1 ltr")
   const unitDisplay = (() => {
     if (item.displayUnit) return item.displayUnit;
-    if (item.baseUnit) {
+    const nameToScan = item.displayName || item.originalName || item.name || '';
+    if (/\b1\/2\s*kg\b/i.test(nameToScan)) return '500 g';
+    if (/\b1\/4\s*kg\b/i.test(nameToScan)) return '250 g';
+    if (/\b3\/4\s*kg\b/i.test(nameToScan)) return '750 g';
+    const match = nameToScan.match(/(\d+(?:\.\d+)?)\s*(ltr|l|kg|gm|gr|g|ml)/i);
+    if (match) {
+      let u = match[2].toLowerCase();
+      if (u === 'l') u = 'ltr';
+      if (u === 'gm' || u === 'gr') u = 'g';
+      return `${match[1]} ${u}`;
+    }
+    if (item.baseUnit && item.baseUnit !== 'pcs' && item.baseUnit !== 'unit') {
       const suffix =
         item.unitType && item.unitType.toLowerCase() !== item.baseUnit.toLowerCase()
           ? `/${item.unitType}`
           : '';
       return `${item.baseQty || 1} ${item.baseUnit}${suffix}`;
-    }
-    // Fallback: check if original item name has measurement e.g. "15kg", "85 g", "1ltr", "750gm"
-    const nameToScan = item.displayName || item.originalName || item.name || '';
-    const match = nameToScan.match(/(\d+(?:\.\d+)?)\s*(ltr|l|kg|gm|g|ml|pcs|pkt|tin|can|bottle|box)/i);
-    if (match) {
-      let u = match[2].toLowerCase();
-      if (u === 'l') u = 'ltr';
-      if (u === 'g') u = 'g';
-      const suffix = item.unitType && item.unitType.toLowerCase() !== u ? `/${item.unitType}` : '';
-      return `${match[1]} ${u}${suffix}`;
     }
     const baseU = item.unitType || 'unit';
     return /^\d+/.test(baseU) ? baseU : `${item.baseQty || 1} ${baseU}`;
@@ -92,10 +105,11 @@ export default function ItemCard({ item, className }) {
             hasVariants ? 'cursor-pointer' : ''
           )}
         >
-          {item.images?.[0] ? (
+          {!imgError && item.images?.[0] ? (
             <img
               src={item.images[0]}
               alt={displayName}
+              onError={() => setImgError(true)}
               className={cn(
                 'w-full h-full object-contain mix-blend-multiply p-1 group-hover:scale-105 transition duration-200',
                 isOutOfStock ? 'opacity-40 grayscale' : ''
