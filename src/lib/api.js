@@ -65,30 +65,46 @@ export const clearStoreCache = () => {
   }
 };
 
-const fetchWithCache = async (cacheKey, fetchFn, ttlMs = 180000, forceRefresh = false) => {
-  if (!forceRefresh) {
-    const cached = getCachedData(cacheKey);
-    if (cached) {
-      return { data: cached, fromCache: true };
-    }
-  }
+const fetchWithCache = async (
+  cacheKey,
+  fetchFn,
+  ttlMs = 180000,
+  forceRefresh = false,
+  onRevalidate = null
+) => {
+  const cached = !forceRefresh ? getCachedData(cacheKey) : null;
 
-  // Request deduplication: if identical request is currently in-flight, return same promise
-  if (inFlightRequests.has(cacheKey)) {
-    return inFlightRequests.get(cacheKey);
-  }
-
-  const promise = (async () => {
+  // Background network revalidation
+  const executeFetch = async () => {
     try {
       const res = await fetchFn();
       setCachedData(cacheKey, res.data, ttlMs);
+      if (typeof onRevalidate === 'function') {
+        onRevalidate(res.data);
+      }
       return res;
     } finally {
       inFlightRequests.delete(cacheKey);
     }
-  })();
+  };
 
+  // If identical request in flight, return or use it
+  if (inFlightRequests.has(cacheKey)) {
+    if (cached) {
+      return { data: cached, fromCache: true };
+    }
+    return inFlightRequests.get(cacheKey);
+  }
+
+  const promise = executeFetch();
   inFlightRequests.set(cacheKey, promise);
+
+  // If cached data is present, return immediately for instant 0ms render,
+  // while the background request revalidates and calls onRevalidate
+  if (cached) {
+    return { data: cached, fromCache: true };
+  }
+
   return promise;
 };
 
@@ -98,32 +114,35 @@ export const verifyOtp = (phone, otp, firebaseToken, firebaseUid) =>
   api.post('/auth/verify-otp', { phone, otp, firebaseToken, firebaseUid });
 
 // Store Public Data with Fast SWR Caching
-export const getStoreInfo = (forceRefresh = false) =>
-  fetchWithCache('store_info', () => api.get('/info'), 180000, forceRefresh);
+export const getStoreInfo = (forceRefresh = false, onRevalidate = null) =>
+  fetchWithCache('store_info', () => api.get('/info'), 180000, forceRefresh, onRevalidate);
 
-export const getCategories = (forceRefresh = false) =>
+export const getCategories = (forceRefresh = false, onRevalidate = null) =>
   fetchWithCache(
     'categories',
     () => api.get('/categories').catch(() => api.get('/catalog/categories')),
     180000,
-    forceRefresh
+    forceRefresh,
+    onRevalidate
   );
 
-export const getSubcategories = (categoryId, forceRefresh = false) =>
+export const getSubcategories = (categoryId, forceRefresh = false, onRevalidate = null) =>
   fetchWithCache(
     `subcategories_${categoryId || 'all'}`,
     () => api.get('/subcategories', { params: categoryId ? { category: categoryId } : {} }),
     180000,
-    forceRefresh
+    forceRefresh,
+    onRevalidate
   );
 
-export const getCatalog = (params = {}, forceRefresh = false) => {
+export const getCatalog = (params = {}, forceRefresh = false, onRevalidate = null) => {
   const cacheKey = `catalog_${JSON.stringify(params || {})}`;
   return fetchWithCache(
     cacheKey,
     () => api.get('/catalog', { params }),
     60000, // 60s catalog cache
-    forceRefresh
+    forceRefresh,
+    onRevalidate
   );
 };
 

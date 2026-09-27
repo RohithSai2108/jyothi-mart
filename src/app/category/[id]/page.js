@@ -153,7 +153,7 @@ export default function CategoryPage() {
     loadCategoryInfo();
   }, [rawId]);
 
-  // 2. Fetch all Catalog Items for this Category once, then filter client-side instantly
+  // 2. Fetch all Catalog Items for this Category: instantaneous cached render + background SWR revalidation
   useEffect(() => {
     const targetCatId = currentCategory?._id || rawId;
     if (!targetCatId) return;
@@ -162,18 +162,46 @@ export default function CategoryPage() {
       setItemsLoading(true);
     }
 
-    getCatalog({ category: targetCatId })
-      .then((res) => {
-        const data = res.data?.data || res.data?.items || (Array.isArray(res.data) ? res.data : []);
-        setAllItems(data);
-        setCachedData(`cat_items_${targetCatId}`, data, 120000);
-      })
-      .catch((err) => {
-        console.error('Failed to fetch catalog items for category:', err);
-      })
-      .finally(() => {
-        setItemsLoading(false);
-      });
+    const loadCategoryCatalog = (force = false) => {
+      getCatalog(
+        { category: targetCatId },
+        force,
+        (freshRes) => {
+          const freshData = freshRes?.data || freshRes?.items || (Array.isArray(freshRes) ? freshRes : []);
+          setAllItems(freshData);
+          setCachedData(`cat_items_${targetCatId}`, freshData, 60000);
+        }
+      )
+        .then((res) => {
+          const data = res.data?.data || res.data?.items || (Array.isArray(res.data) ? res.data : []);
+          setAllItems(data);
+          setCachedData(`cat_items_${targetCatId}`, data, 60000);
+        })
+        .catch((err) => {
+          console.error('Failed to fetch catalog items for category:', err);
+        })
+        .finally(() => {
+          setItemsLoading(false);
+        });
+    };
+
+    // Initial load
+    loadCategoryCatalog(false);
+
+    // Auto-revalidate when tab gains focus or user returns to this tab
+    const handleFocus = () => loadCategoryCatalog(true);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadCategoryCatalog(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [currentCategory?._id, rawId]);
 
   // ── FILTERING & MULTILINGUAL SEARCH PIPELINE ──
