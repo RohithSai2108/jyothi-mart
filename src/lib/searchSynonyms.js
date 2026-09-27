@@ -9,7 +9,7 @@
 export const SYNONYM_CLUSTERS = [
   // ── Dals & Pulses ──
   ['toor', 'toordal', 'toor dal', 'tuvar', 'tuver', 'arhar', 'kandi', 'kandipappu', 'kandi pappu', 'pigeon pea', 'red gram', 'yellow dal'],
-  ['moong', 'moongdal', 'moong dal', 'mung', 'mungdal', 'pesara', 'pesarapappu', 'pesara pappu', 'pesarlu', 'green gram', 'yellow moong'],
+  ['moong', 'moongdal', 'moong dal', 'mung', 'mungdal', 'pesara', 'pesar', 'pesarapappu', 'pesara pappu', 'pesarlu', 'green gram', 'yellow moong'],
   ['urad', 'uraddal', 'urad dal', 'udhad', 'minapa', 'minapappu', 'minapa pappu', 'minumulu', 'gundu minapa', 'black gram', 'white urad'],
   ['chana', 'chanadal', 'chana dal', 'senaga', 'senagapappu', 'senaga pappu', 'senagalu', 'bengal gram', 'chhole', 'chana dalia', 'putnalu', 'roasted gram'],
   ['masoor', 'masoordal', 'masoor dal', 'erra pappu', 'red lentil', 'malka'],
@@ -115,11 +115,39 @@ for (const cluster of SYNONYM_CLUSTERS) {
   }
 }
 
+// Generic grocery nouns that should not be expanded on their own when part of a compound query
+export const GENERIC_NOUNS = new Set([
+  'pappu', 'dal', 'dhal', 'oil', 'tel', 'nune', 'powder', 'flour', 'atta',
+  'pindi', 'rice', 'chawal', 'biyyam', 'soap', 'soaps', 'paste', 'leaves',
+  'seeds', 'tea', 'coffee'
+]);
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Checks if a token matches within an item's text respecting word boundaries.
+ * Prevents false positives like "toor" matching inside "santoor".
+ */
+export function wordMatch(itemText, token) {
+  if (!itemText || !token) return false;
+  const lowerText = itemText.toLowerCase();
+  const lowerToken = token.toLowerCase();
+
+  if (lowerToken.includes(' ')) {
+    return lowerText.includes(lowerToken);
+  }
+
+  const regex = new RegExp(`(^|[^a-z0-9])${escapeRegex(lowerToken)}([^a-z0-9]|$)`, 'i');
+  return regex.test(lowerText);
+}
+
 /**
  * Expand a user search query into an array of search tokens and regional synonyms.
  * 
- * E.g. "kandipappu" -> ["kandipappu", "kandi", "toor", "toor dal", "tuvar", "arhar", "pigeon pea"]
- * E.g. "moong dal"  -> ["moong dal", "moong", "pesara", "pesarapappu", "mung", "green gram"]
+ * E.g. "kandi pappu" -> ["kandi pappu", "toor dal", "tuvar", "arhar", "pigeon pea", ...]
+ * E.g. "moong dal"   -> ["moong dal", "moong", "pesara", "pesarapappu", "mung", ...]
  * 
  * @param {string} query 
  * @returns {string[]} expandedTokens
@@ -132,16 +160,23 @@ export function expandSearchTerms(query) {
   const results = new Set();
   results.add(clean);
 
-  // Check full multi-word query directly in lookup map
+  // 1. Check full multi-word query directly in lookup map (e.g. "kandi pappu" -> toor dal cluster)
   if (LOOKUP_MAP.has(clean)) {
     for (const syn of LOOKUP_MAP.get(clean)) {
       results.add(syn);
     }
+    return Array.from(results);
   }
 
-  // Split into individual words
+  // 2. Split into individual words
   const words = clean.split(/\s+/).filter(Boolean);
-  for (const word of words) {
+  const specificWords = words.filter((w) => !GENERIC_NOUNS.has(w));
+
+  // If we have specific qualifiers (e.g. "kandi" in "kandi pappu"), expand ONLY the specific words!
+  // This prevents generic "pappu" from matching every pulse in the store.
+  const wordsToExpand = specificWords.length > 0 ? specificWords : words;
+
+  for (const word of wordsToExpand) {
     results.add(word);
     if (LOOKUP_MAP.has(word)) {
       for (const syn of LOOKUP_MAP.get(word)) {
@@ -154,7 +189,7 @@ export function expandSearchTerms(query) {
 }
 
 /**
- * Check if a product item matches a search query using multilingual synonyms.
+ * Check if a product item matches a search query using multilingual synonyms and word boundaries.
  * 
  * @param {Object} item - Product item { name, displayName, originalName, categoryName, subcategoryName, group }
  * @param {string} query - Raw search query string
@@ -165,7 +200,6 @@ export function matchesGroceryQuery(item, query) {
   if (!item) return false;
 
   const cleanQuery = query.toLowerCase().trim();
-  const expanded = expandSearchTerms(cleanQuery);
 
   // Combine product text fields into searchable string
   const itemTexts = [
@@ -179,23 +213,61 @@ export function matchesGroceryQuery(item, query) {
     .join(' ')
     .toLowerCase();
 
-  // 1. Direct substring match (highest priority)
+  // 1. Direct whole substring match (highest priority)
   if (itemTexts.includes(cleanQuery)) {
     return true;
   }
 
-  // 2. Check if all query words appear in itemTexts
-  const queryWords = cleanQuery.split(/\s+/).filter(Boolean);
-  if (queryWords.length > 1 && queryWords.every((w) => itemTexts.includes(w))) {
-    return true;
-  }
-
-  // 3. Multilingual synonym token match
+  // 2. Multilingual synonym token match using whole-word boundaries
+  const expanded = expandSearchTerms(cleanQuery);
   for (const syn of expanded) {
-    if (syn.length >= 2 && itemTexts.includes(syn)) {
+    if (syn.length >= 2 && wordMatch(itemTexts, syn)) {
       return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Calculate relevance score for an item against a search query.
+ * Higher score = higher ranking in search results.
+ */
+export function getRelevanceScore(item, query) {
+  if (!query || !query.trim() || !item) return 0;
+  const cleanQuery = query.toLowerCase().trim();
+  const itemName = (item.name || item.displayName || '').toLowerCase();
+
+  if (itemName === cleanQuery) return 100;
+  if (itemName.startsWith(cleanQuery)) return 90;
+  if (wordMatch(itemName, cleanQuery)) return 80;
+  if (itemName.includes(cleanQuery)) return 70;
+
+  const expanded = expandSearchTerms(cleanQuery);
+  let bestSynScore = 0;
+  for (const syn of expanded) {
+    if (syn === cleanQuery) continue;
+    if (syn.includes(' ') && itemName.includes(syn)) {
+      bestSynScore = Math.max(bestSynScore, 65);
+    } else if (wordMatch(itemName, syn)) {
+      bestSynScore = Math.max(bestSynScore, 50);
+    }
+  }
+  if (bestSynScore > 0) return bestSynScore;
+
+  const otherTexts = [
+    item.originalName || '',
+    item.categoryName || '',
+    item.subcategoryName || '',
+    (item.group && typeof item.group === 'object' ? item.group.name : item.group) || '',
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  if (otherTexts.includes(cleanQuery)) return 30;
+  for (const syn of expanded) {
+    if (wordMatch(otherTexts, syn)) return 20;
+  }
+
+  return 5;
 }
