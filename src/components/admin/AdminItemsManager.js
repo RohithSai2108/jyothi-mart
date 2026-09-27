@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { Search, Package, RefreshCw, Pencil, CheckCircle2, EyeOff, Sparkles, Layers } from 'lucide-react';
-import { getAdminItems } from '@/lib/api';
+import { getAdminItems, updateAdminItem } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
 import ItemEditModal from '@/components/admin/ItemEditModal';
 
@@ -12,6 +12,32 @@ export default function AdminItemsManager({ compact = false, onItemUpdated }) {
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [toastMessage, setToastMessage] = useState('');
   const [editingItem, setEditingItem] = useState(null);
+  const [updatingVisibilityId, setUpdatingVisibilityId] = useState(null);
+
+  const handleToggleVisibility = async (item) => {
+    const newVisible = item.visible === false ? true : false;
+    setUpdatingVisibilityId(item._id);
+
+    // Optimistically update local item state
+    setItems((prev) =>
+      prev.map((i) => (i._id === item._id ? { ...i, visible: newVisible } : i))
+    );
+
+    try {
+      await updateAdminItem(item._id, { visible: newVisible });
+      showToast(`"${item.displayName || item.name}" is now ${newVisible ? 'LIVE online' : 'OFFLINE (hidden)'}`);
+      if (onItemUpdated) onItemUpdated({ ...item, visible: newVisible });
+    } catch (err) {
+      console.error('Failed to toggle visibility:', err);
+      // Revert on error
+      setItems((prev) =>
+        prev.map((i) => (i._id === item._id ? { ...i, visible: !newVisible } : i))
+      );
+      showToast('Failed to change item visibility');
+    } finally {
+      setUpdatingVisibilityId(null);
+    }
+  };
 
   const fetchItems = () => {
     setLoading(true);
@@ -249,8 +275,23 @@ export default function AdminItemsManager({ compact = false, onItemUpdated }) {
                   </div>
                 </div>
 
-                {/* Right side: Single clean EDIT button (as requested) */}
+                {/* Right side: 1-Tap LIVE Button + EDIT button */}
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    disabled={updatingVisibilityId === item._id}
+                    onClick={() => handleToggleVisibility(item)}
+                    className={`inline-flex items-center gap-1.5 text-[11px] font-extrabold px-3 py-1.5 rounded-xl border transition cursor-pointer select-none active:scale-95 ${
+                      isVisible
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 shadow-2xs'
+                        : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-200'
+                    } ${updatingVisibilityId === item._id ? 'opacity-50 cursor-wait' : ''}`}
+                    title={isVisible ? 'Currently LIVE online (click to hide)' : 'Currently HIDDEN (click to go live)'}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${isVisible ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                    <span>{isVisible ? 'LIVE' : 'OFF'}</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setEditingItem(item)}

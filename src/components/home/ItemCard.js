@@ -11,7 +11,15 @@ export default function ItemCard({ item, className }) {
   const [variantModalOpen, setVariantModalOpen] = useState(false);
 
   const hasVariants = Array.isArray(item.variants) && item.variants.length > 0;
-  const isOutOfStock = item.stock !== null && item.stock !== undefined && item.stock <= 0;
+  const isOutOfStock = (() => {
+    if (typeof item.stock === 'number') return item.stock <= 0;
+    if (item.stock && typeof item.stock === 'object') {
+      const full = typeof item.stock.quantity === 'number' ? item.stock.quantity : 0;
+      const loose = typeof item.stock.looseQuantity === 'number' ? item.stock.looseQuantity : 0;
+      return (full <= 0 && loose <= 0);
+    }
+    return false;
+  })();
 
   const displayName = item.displayName || item.name;
   const numMrp = Number(item.mrp) || 0;
@@ -80,7 +88,7 @@ export default function ItemCard({ item, className }) {
         <div
           onClick={hasVariants ? () => setVariantModalOpen(true) : undefined}
           className={cn(
-            'w-full h-28 bg-gray-50 rounded-xl flex items-center justify-center mb-2.5 overflow-hidden border border-gray-100',
+            'w-full h-28 bg-gray-50 rounded-xl flex items-center justify-center mb-2.5 overflow-hidden border border-gray-100 relative',
             hasVariants ? 'cursor-pointer' : ''
           )}
         >
@@ -88,13 +96,30 @@ export default function ItemCard({ item, className }) {
             <img
               src={item.images[0]}
               alt={displayName}
-              className="w-full h-full object-contain mix-blend-multiply p-1 group-hover:scale-105 transition duration-200"
+              className={cn(
+                'w-full h-full object-contain mix-blend-multiply p-1 group-hover:scale-105 transition duration-200',
+                isOutOfStock ? 'opacity-40 grayscale' : ''
+              )}
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+            <div
+              className={cn(
+                'w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50',
+                isOutOfStock ? 'opacity-40 grayscale' : ''
+              )}
+            >
               <Package className="w-8 h-8 text-gray-300 mb-1" />
               <span className="text-[10px] text-gray-400 font-semibold px-2 text-center line-clamp-1">
                 {displayName}
+              </span>
+            </div>
+          )}
+
+          {/* Out of Stock Overlay Ribbon */}
+          {isOutOfStock && (
+            <div className="absolute inset-x-0 bottom-0 bg-gray-900/80 backdrop-blur-2xs py-0.5 text-center">
+              <span className="text-[9px] font-black uppercase tracking-wider text-white">
+                Out of Stock
               </span>
             </div>
           )}
