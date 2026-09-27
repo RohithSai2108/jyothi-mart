@@ -45,7 +45,8 @@ export default function ItemCard({ item, className }) {
       const suffix = item.unitType && item.unitType.toLowerCase() !== u ? `/${item.unitType}` : '';
       return `${match[1]} ${u}${suffix}`;
     }
-    return item.unitType || '1 unit';
+    const baseU = item.unitType || 'unit';
+    return /^\d+/.test(baseU) ? baseU : `${item.baseQty || 1} ${baseU}`;
   })();
 
   // If item has variants, total quantity across all variants of this product

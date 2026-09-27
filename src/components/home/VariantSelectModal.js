@@ -11,17 +11,67 @@ export default function VariantSelectModal({ item, isOpen, onClose }) {
   const rawVariants = Array.isArray(item.variants) && item.variants.length > 0 ? item.variants : [];
   const displayName = item.displayName || item.name;
 
+  const baseUnitStr = (item.baseUnit || item.unitType || 'kg').trim();
+  const baseQtyVal = item.baseQty || 1;
   const singleLabel =
     item.displayUnit ||
     (item.baseUnit
-      ? `${item.baseQty || 1} ${item.baseUnit}${item.unitType && item.unitType.toLowerCase() !== item.baseUnit.toLowerCase() ? '/' + item.unitType : ''}`
-      : item.unitType) ||
-    '1 unit';
+      ? `${baseQtyVal} ${item.baseUnit}${item.unitType && item.unitType.toLowerCase() !== item.baseUnit.toLowerCase() ? '/' + item.unitType : ''}`
+      : (baseUnitStr && !/^\d+/.test(baseUnitStr) ? `${baseQtyVal} ${baseUnitStr}` : baseUnitStr));
 
   const hasSingleVariant = rawVariants.some((v) => Number(v.qty) === 1 || v.label === singleLabel);
 
-  const variants = [...rawVariants];
-  if (!hasSingleVariant && rawVariants.length > 0) {
+  const baseRetail = Number(item.retailPrice) || 0;
+  const baseMrpVal = Number(item.mrp) || 0;
+
+  // Normalize all variants ensuring labels and prices are properly formatted
+  const normalizedVariants = rawVariants.map((v) => {
+    let rawLabel = (v.label || '').trim();
+    let q = Number(v.qty);
+    if (!q || isNaN(q)) {
+      const match = rawLabel.match(/(\d+(?:\.\d+)?)/);
+      q = match ? parseFloat(match[1]) : 1;
+    }
+
+    let displayLabel = rawLabel;
+    if (!displayLabel || /^\d+(\.\d+)?$/.test(displayLabel)) {
+      displayLabel = item.itemType === 'packed'
+        ? `${q} x ${item.baseQty || 1} ${baseUnitStr}`
+        : `${q} ${baseUnitStr}`;
+    } else if (/^(kg|gm|g|ltr|l|ml|pcs|pkt|tin|box|unit)$/i.test(displayLabel)) {
+      displayLabel = `1 ${displayLabel}`;
+    }
+
+    let vPrice = Number(v.price) || 0;
+    let vMrp = Number(v.mrp) || 0;
+
+    if (item.itemType === 'loose' && q > 1) {
+      if (vPrice > 0 && vPrice <= baseRetail * 1.5) {
+        vPrice = Math.round(vPrice * q * 100) / 100;
+      }
+      if (vMrp > 0 && vMrp <= baseMrpVal * 1.5) {
+        vMrp = Math.round(vMrp * q * 100) / 100;
+      }
+    } else if (item.itemType === 'packed' && q > 1) {
+      if (vPrice > 0 && vPrice <= baseRetail * 1.2) {
+        vPrice = Math.round(vPrice * q * 100) / 100;
+      }
+      if (vMrp > 0 && vMrp <= baseMrpVal * 1.2) {
+        vMrp = Math.round(vMrp * q * 100) / 100;
+      }
+    }
+
+    return {
+      ...v,
+      qty: q,
+      label: displayLabel,
+      price: vPrice,
+      mrp: vMrp > 0 ? vMrp : null,
+    };
+  });
+
+  const variants = [...normalizedVariants];
+  if (!hasSingleVariant && normalizedVariants.length > 0) {
     variants.push({
       variantId: 'base_single',
       qty: 1,

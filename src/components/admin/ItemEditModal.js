@@ -86,7 +86,6 @@ export default function ItemEditModal({ item, isOpen, onClose, onSaveSuccess }) 
           ? String(item.customPrice)
           : (item.retailPrice !== null && item.retailPrice !== undefined ? String(item.retailPrice) : '')
       );
-      setVariants(Array.isArray(item.variants) ? JSON.parse(JSON.stringify(item.variants)) : []);
 
       // Smart parsing of base quantity and unit
       let parsedQty = item.baseQty;
@@ -122,6 +121,57 @@ export default function ItemEditModal({ item, isOpen, onClose, onSaveSuccess }) 
         }
       }
 
+      // Normalize variants ensuring qty, label, per-unit rate, and auto-multiplied totals
+      const rawVars = Array.isArray(item.variants) ? JSON.parse(JSON.stringify(item.variants)) : [];
+      const baseP = Number(item.customPrice || item.retailPrice || 0);
+      const baseM = Number(item.mrp || 0);
+
+      const normalizedVariants = rawVars.map((v) => {
+        let q = Number(v.qty);
+        let rawLabel = (v.label || '').trim();
+        if (!q || isNaN(q)) {
+          const match = rawLabel.match(/(\d+(?:\.\d+)?)/);
+          q = match ? parseFloat(match[1]) : 1;
+        }
+
+        let perU = v.perUnitPrice !== undefined && v.perUnitPrice !== null && v.perUnitPrice !== '' ? Number(v.perUnitPrice) : null;
+        let p = Number(v.price) || 0;
+        let m = v.mrp !== null && v.mrp !== undefined ? Number(v.mrp) : null;
+
+        if (type === 'loose') {
+          if (!perU && p > 0) {
+            if (q > 1 && p <= baseP * 1.5) {
+              perU = p;
+              p = Math.round(perU * q * 100) / 100;
+              m = baseM ? Math.round(baseM * q * 100) / 100 : m;
+            } else {
+              perU = Math.round((p / q) * 100) / 100;
+            }
+          }
+          if (!rawLabel || /^\d+(\.\d+)?$/.test(rawLabel)) {
+            rawLabel = `${q} ${parsedUnit || 'kg'}`;
+          }
+        } else {
+          if (q > 1 && p > 0 && p <= baseP * 1.2) {
+            p = Math.round(baseP * q * 100) / 100;
+            m = baseM ? Math.round(baseM * q * 100) / 100 : m;
+          }
+          if (!rawLabel || /^\d+(\.\d+)?$/.test(rawLabel)) {
+            rawLabel = `${q} x ${parsedQty || 1} ${parsedUnit || 'unit'}`;
+          }
+        }
+
+        return {
+          ...v,
+          qty: q,
+          label: rawLabel,
+          perUnitPrice: perU,
+          price: p,
+          mrp: m,
+        };
+      });
+
+      setVariants(normalizedVariants);
       setBaseQty(parsedQty);
       setBaseUnit(parsedUnit);
       setPkgSuffix(parsedSuffix);
@@ -323,10 +373,12 @@ export default function ItemEditModal({ item, isOpen, onClose, onSaveSuccess }) 
       const copy = [...prev];
       const cur = copy[index];
       const q = Number(cur.qty) || 0;
+      const baseM = mrp ? Number(mrp) : null;
       copy[index] = {
         ...cur,
         perUnitPrice: perU,
         price: q > 0 ? Math.round(numericPerU * q * 100) / 100 : 0,
+        mrp: baseM && q > 0 ? Math.round(baseM * q * 100) / 100 : cur.mrp,
       };
       return copy;
     });
