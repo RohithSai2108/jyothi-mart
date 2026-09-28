@@ -136,12 +136,13 @@ export const getSubcategories = (categoryId, forceRefresh = false, onRevalidate 
   );
 
 export const getCatalog = (params = {}, forceRefresh = false, onRevalidate = null) => {
+  const isSearch = Boolean(params && params.search && String(params.search).trim());
   const cacheKey = `catalog_${JSON.stringify(params || {})}`;
   return fetchWithCache(
     cacheKey,
     () => api.get('/catalog', { params }),
-    60000, // 60s catalog cache
-    forceRefresh,
+    isSearch ? 5000 : 20000, // 20s general catalog cache, 5s for search
+    forceRefresh || isSearch,
     onRevalidate
   );
 };
