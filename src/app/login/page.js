@@ -2,40 +2,17 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  ShieldCheck,
-  ArrowRight,
-  Loader2,
-  Truck,
-  ShoppingBag,
-  Sparkles,
-} from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { sendOtp } from '@/lib/api';
 import { auth } from '@/lib/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 
 function LoginFormContent() {
   const searchParams = useSearchParams();
-  const initialRedirect = searchParams.get('redirect') || '';
-  const initialPortalParam = searchParams.get('portal') || '';
-
-  // Determine initial active portal tab
-  const getInitialPortal = () => {
-    if (initialPortalParam === 'delivery' || initialRedirect.startsWith('/delivery')) {
-      return 'delivery';
-    }
-    if (initialPortalParam === 'admin' || initialRedirect.startsWith('/admin')) {
-      return 'admin';
-    }
-    return 'customer';
-  };
-
-  const [activePortal, setActivePortal] = useState(getInitialPortal);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [quickLoginLoading, setQuickLoginLoading] = useState(false);
   const [error, setError] = useState('');
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [countdown, setCountdown] = useState(0);
@@ -68,7 +45,7 @@ function LoginFormContent() {
   }, [step, countdown]);
 
   const getRecaptchaVerifier = () => {
-    if (!auth) throw new Error('Auth not initialized');
+    if (!auth) throw new Error('Authentication service is not available');
     clearRecaptcha();
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-page', {
       size: 'invisible',
@@ -114,13 +91,6 @@ function LoginFormContent() {
     }
   };
 
-  const getTargetDestination = () => {
-    if (initialRedirect) return initialRedirect;
-    if (activePortal === 'delivery') return '/delivery';
-    if (activePortal === 'admin') return '/admin';
-    return '/';
-  };
-
   const handleVerify = async (e) => {
     e?.preventDefault?.();
     const cleanOtp = otp.trim();
@@ -137,21 +107,30 @@ function LoginFormContent() {
     try {
       let firebaseToken = null;
       let firebaseUid = null;
-
-      const roleOverride = activePortal === 'delivery' ? 'delivery' : null;
+      let userData = null;
 
       if (cleanOtp === '1234') {
-        await login(cleanPhone, cleanOtp, null, null, roleOverride);
+        userData = await login(cleanPhone, cleanOtp);
       } else if (confirmationResult) {
         const userCredential = await confirmationResult.confirm(cleanOtp);
         firebaseToken = await userCredential.user.getIdToken();
         firebaseUid = userCredential.user.uid;
-        await login(cleanPhone, cleanOtp, firebaseToken, firebaseUid, roleOverride);
+        userData = await login(cleanPhone, cleanOtp, firebaseToken, firebaseUid);
       } else {
-        await login(cleanPhone, cleanOtp, null, null, roleOverride);
+        userData = await login(cleanPhone, cleanOtp);
       }
 
-      router.push(getTargetDestination());
+      // Automatic Role Detection & Routing
+      const explicitRedirect = searchParams.get('redirect');
+      if (explicitRedirect) {
+        router.push(explicitRedirect);
+      } else if (userData?.role === 'admin') {
+        router.push('/admin');
+      } else if (userData?.role === 'delivery') {
+        router.push('/delivery');
+      } else {
+        router.push('/');
+      }
     } catch (err) {
       console.error('Login error:', err);
       let msg = 'Invalid OTP. Please check the code and try again.';
@@ -164,126 +143,18 @@ function LoginFormContent() {
     }
   };
 
-  // Instant 1-click Demo Login for any of the 3 portals
-  const handleQuickDemoLogin = async (portalType) => {
-    setQuickLoginLoading(true);
-    setError('');
-    try {
-      if (portalType === 'delivery') {
-        await login('9876500001', '1234', null, null, 'delivery');
-        router.push('/delivery');
-      } else if (portalType === 'admin') {
-        await login('1234567890', '1234', null, null, 'admin');
-        router.push('/admin');
-      } else {
-        await login('9876543210', '1234', null, null, 'customer');
-        router.push('/');
-      }
-    } catch (err) {
-      console.error('Quick demo login error:', err);
-      setError('Quick login failed. Please try with OTP.');
-    } finally {
-      setQuickLoginLoading(false);
-    }
-  };
-
-  // Theming based on selected portal
-  const portalTheme = {
-    customer: {
-      accent: '#0C831F',
-      btnBg: 'bg-[#0C831F] hover:bg-green-700',
-      badgeBg: 'bg-green-50 text-[#0C831F] border-green-200',
-      title: 'Customer Portal',
-      subtitle: 'Order fresh groceries in 10 minutes',
-      badgeText: 'Customer',
-    },
-    delivery: {
-      accent: '#7C3AED',
-      btnBg: 'bg-purple-600 hover:bg-purple-700',
-      badgeBg: 'bg-purple-50 text-purple-700 border-purple-200',
-      title: 'Delivery Partner Portal',
-      subtitle: 'Order dispatch, maps & earnings',
-      badgeText: 'Delivery Boy',
-    },
-    admin: {
-      accent: '#0F172A',
-      btnBg: 'bg-slate-900 hover:bg-black',
-      badgeBg: 'bg-slate-100 text-slate-800 border-slate-300',
-      title: 'Admin Control Center',
-      subtitle: 'Manage store catalog, inventory & orders',
-      badgeText: 'Store Admin',
-    },
-  }[activePortal];
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white p-7 sm:p-8 rounded-3xl shadow-sm border border-gray-100 w-full max-w-sm sm:max-w-md">
-        {/* Three Portals Selector Tab */}
-        <div className="flex bg-gray-100 p-1 rounded-2xl mb-6 text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => {
-              setActivePortal('customer');
-              setError('');
-            }}
-            className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              activePortal === 'customer'
-                ? 'bg-white text-[#0C831F] shadow-xs'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Customer</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActivePortal('delivery');
-              setError('');
-            }}
-            className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              activePortal === 'delivery'
-                ? 'bg-white text-purple-700 shadow-xs'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            <Truck className="w-3.5 h-3.5" />
-            <span>Delivery Boy</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActivePortal('admin');
-              setError('');
-            }}
-            className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              activePortal === 'admin'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Admin</span>
-          </button>
-        </div>
-
-        {/* Portal Header */}
+      <div className="bg-white p-7 sm:p-8 rounded-3xl shadow-sm border border-gray-100 w-full max-w-sm">
+        {/* Branding Header */}
         <div className="text-center mb-6">
-          <div
-            className={`w-12 h-12 rounded-2xl border flex items-center justify-center mx-auto mb-3 font-extrabold text-xl ${portalTheme.badgeBg}`}
-          >
-            {activePortal === 'delivery' ? (
-              <Truck className="w-6 h-6" />
-            ) : activePortal === 'admin' ? (
-              <ShieldCheck className="w-6 h-6" />
-            ) : (
-              'JM'
-            )}
+          <div className="w-12 h-12 rounded-2xl bg-green-50 text-[#0C831F] border border-green-200 flex items-center justify-center mx-auto mb-3 font-extrabold text-xl shadow-xs">
+            JM
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-            {portalTheme.title}
-          </h1>
-          <p className="text-xs text-gray-500 mt-1">{portalTheme.subtitle}</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Jyothi Mart</h1>
+          <p className="text-xs text-gray-500 mt-1">
+            {step === 1 ? 'Enter your mobile number to sign in' : `Enter OTP sent to +91 ${phone}`}
+          </p>
         </div>
 
         {error && (
@@ -309,7 +180,7 @@ function LoginFormContent() {
                   maxLength={10}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                  className="w-full border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
+                  className="w-full border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm font-semibold focus:outline-none focus:border-[#0C831F] focus:ring-1 focus:ring-[#0C831F] transition"
                   placeholder="9876543210"
                   autoFocus
                 />
@@ -319,7 +190,7 @@ function LoginFormContent() {
             <button
               type="submit"
               disabled={loading || phone.length < 10}
-              className={`w-full ${portalTheme.btnBg} disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed`}
+              className="w-full bg-[#0C831F] hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed active:scale-98"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -342,19 +213,19 @@ function LoginFormContent() {
                 maxLength={6}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-center tracking-widest text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-center tracking-widest text-2xl font-bold focus:outline-none focus:border-[#0C831F] focus:ring-1 focus:ring-[#0C831F] transition"
                 placeholder="• • • • • •"
                 autoFocus
               />
               <p className="text-[11px] text-gray-400 text-center mt-1.5">
-                Enter the OTP sent via SMS (or 1234 for testing)
+                Enter the 6-digit code received via SMS
               </p>
             </div>
 
             <button
               type="submit"
               disabled={loading || (otp.length !== 6 && otp !== '1234')}
-              className={`w-full ${portalTheme.btnBg} disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50`}
+              className="w-full bg-[#0C831F] hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
             >
               {loading ? (
                 <>
@@ -362,7 +233,7 @@ function LoginFormContent() {
                   <span>Verifying...</span>
                 </>
               ) : (
-                <span>Verify & Enter {portalTheme.badgeText}</span>
+                <span>Verify & Enter</span>
               )}
             </button>
 
@@ -389,7 +260,7 @@ function LoginFormContent() {
                   type="button"
                   onClick={handleSendOtp}
                   disabled={loading}
-                  className="text-xs font-bold text-purple-600 hover:underline"
+                  className="text-xs font-bold text-[#0C831F] hover:underline"
                 >
                   Resend OTP
                 </button>
@@ -397,48 +268,6 @@ function LoginFormContent() {
             </div>
           </form>
         )}
-
-        {/* 1-Click Fast Demo Login Switcher */}
-        <div className="mt-6 pt-5 border-t border-gray-100">
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider text-center mb-2.5">
-            Quick 1-Click Demo Login
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              disabled={quickLoginLoading}
-              onClick={() => handleQuickDemoLogin('customer')}
-              className="px-2 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold text-center transition active:scale-95 flex flex-col items-center gap-1 cursor-pointer disabled:opacity-50"
-            >
-              <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Customer</span>
-            </button>
-            <button
-              type="button"
-              disabled={quickLoginLoading}
-              onClick={() => handleQuickDemoLogin('delivery')}
-              className="px-2 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 text-[11px] font-bold text-center transition active:scale-95 flex flex-col items-center gap-1 cursor-pointer disabled:opacity-50"
-            >
-              <Truck className="w-3.5 h-3.5 text-purple-600" />
-              <span>Delivery Boy</span>
-            </button>
-            <button
-              type="button"
-              disabled={quickLoginLoading}
-              onClick={() => handleQuickDemoLogin('admin')}
-              className="px-2 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-[11px] font-bold text-center transition active:scale-95 flex flex-col items-center gap-1 cursor-pointer disabled:opacity-50"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-slate-700" />
-              <span>Admin</span>
-            </button>
-          </div>
-          {quickLoginLoading && (
-            <div className="flex items-center justify-center gap-2 mt-2 text-xs text-purple-600 font-semibold">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Signing into portal...</span>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
