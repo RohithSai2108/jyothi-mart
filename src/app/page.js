@@ -10,13 +10,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
-  // Background network revalidation with 5s timeout
+  // Background network revalidation with 2s timeout
   const loadData = async (forceRefresh = false) => {
     if (forceRefresh) setLoading(true);
     setLoadError(null);
     try {
       const [catRes, infoRes] = await Promise.all([
-        getCategories(forceRefresh, null, 5000).catch((err) => {
+        getCategories(forceRefresh, null, 2000).catch((err) => {
           console.warn('Categories load error/timeout:', err);
           return { data: [] };
         }),
@@ -61,7 +61,7 @@ export default function Home() {
       setHeroBanners(info.heroBanners);
     }
 
-    // 2. Fetch fresh data with 5000ms max timeout
+    // 2. Fetch fresh data with 2000ms max timeout
     loadData();
   }, []);
 
@@ -71,7 +71,7 @@ export default function Home() {
       <HeroBannerCarousel banners={heroBanners} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2 sm:mt-4">
-        {/* Zepto Style Shop by Category with Dynamic Lazy Loading */}
+        {/* Shop by Category — renders eagerly for instant display */}
         <ShopByCategory
           categories={categories}
           loading={loading}

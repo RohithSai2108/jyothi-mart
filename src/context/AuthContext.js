@@ -24,11 +24,14 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = async (phone, otp, firebaseToken, firebaseUid) => {
+  const login = async (phone, otp, firebaseToken, firebaseUid, roleOverride = null) => {
     const res = await verifyOtp(phone, otp, firebaseToken, firebaseUid);
     const payload = res.data?.data || res.data;
     const token = payload?.token;
     const userData = payload?.user;
+    if (roleOverride && userData) {
+      userData.role = roleOverride;
+    }
     if (token) localStorage.setItem('token', token);
     if (userData) localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);

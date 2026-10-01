@@ -94,7 +94,7 @@ export default function Header() {
                   </Link>
                 )}
 
-                {isDelivery && (
+                {(isDelivery || isAdmin) && (
                   <Link
                     href="/delivery"
                     className="inline-flex items-center gap-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 px-2.5 py-1 rounded-full text-xs font-bold transition"
@@ -221,7 +221,7 @@ export default function Header() {
             )}
 
             {/* Delivery Partner Access Button */}
-            {isDelivery && (
+            {(isDelivery || isAdmin) && (
               <div className="p-4 bg-purple-50/70 border-b border-purple-100">
                 <Link
                   href="/delivery"
