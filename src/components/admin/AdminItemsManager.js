@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Search, Package, RefreshCw, Pencil, CheckCircle2, EyeOff, Sparkles, Layers } from 'lucide-react';
 import { getAdminItems, updateAdminItem } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
@@ -9,10 +9,14 @@ export default function AdminItemsManager({ compact = false, onItemUpdated }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [toastMessage, setToastMessage] = useState('');
   const [editingItem, setEditingItem] = useState(null);
   const [updatingVisibilityId, setUpdatingVisibilityId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ADMIN_PAGE_SIZE = 50;
+  const searchTimerRef = useRef(null);
 
   const handleToggleVisibility = async (item) => {
     const newVisible = item.visible === false ? true : false;
@@ -95,8 +99,8 @@ export default function AdminItemsManager({ compact = false, onItemUpdated }) {
     if (selectedGroup !== 'all') {
       result = result.filter((i) => i.group === selectedGroup);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(
         (i) =>
           i.name?.toLowerCase().includes(q) ||
@@ -108,7 +112,28 @@ export default function AdminItemsManager({ compact = false, onItemUpdated }) {
       );
     }
     return result;
-  }, [items, searchQuery, selectedGroup]);
+  }, [items, debouncedSearch, selectedGroup]);
+
+  // Reset page on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, selectedGroup]);
+
+  // Debounce search input by 300ms
+  const handleSearchChange = useCallback((e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(val);
+    }, 300);
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ADMIN_PAGE_SIZE));
+  const pagedItems = useMemo(() => {
+    const start = (currentPage - 1) * ADMIN_PAGE_SIZE;
+    return filteredItems.slice(start, start + ADMIN_PAGE_SIZE);
+  }, [filteredItems, currentPage]);
 
   const visibleCount = items.filter((i) => i.visible !== false).length;
 
@@ -150,7 +175,7 @@ export default function AdminItemsManager({ compact = false, onItemUpdated }) {
               type="text"
               placeholder="Search items by name or category..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:bg-white focus:outline-none focus:border-[#0C831F]"
             />
           </div>
@@ -179,7 +204,7 @@ export default function AdminItemsManager({ compact = false, onItemUpdated }) {
             <p className="text-xs">No matching items</p>
           </div>
         ) : (
-          filteredItems.map((item) => {
+          pagedItems.map((item) => {
             const stockCount = getStockCount(item.stock);
             const isVisible = item.visible !== false;
             const hasImages = Array.isArray(item.images) && item.images.length > 0;
@@ -306,6 +331,32 @@ export default function AdminItemsManager({ compact = false, onItemUpdated }) {
           })
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-white">
+          <span className="text-xs text-gray-500">
+            Showing {(currentPage - 1) * ADMIN_PAGE_SIZE + 1}–{Math.min(currentPage * ADMIN_PAGE_SIZE, filteredItems.length)} of {filteredItems.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg disabled:opacity-40 cursor-pointer transition"
+            >
+              ← Prev
+            </button>
+            <span className="text-xs font-semibold text-gray-600">{currentPage} / {totalPages}</span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg disabled:opacity-40 cursor-pointer transition"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Comprehensive Edit Item Modal */}
       {editingItem && (
