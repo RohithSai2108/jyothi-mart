@@ -5,41 +5,27 @@ import ShopByCategory from '@/components/home/ShopByCategory';
 import { getCategories, getStoreInfo, getCachedData } from '@/lib/api';
 
 export default function Home() {
-  const [categories, setCategories] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const cached = getCachedData('categories');
-      const list = cached?.data || cached || [];
-      if (Array.isArray(list) && list.length > 0) return list;
-    }
-    return [];
-  });
-
-  const [heroBanners, setHeroBanners] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const cached = getCachedData('store_info');
-      const info = cached?.data || cached || {};
-      if (Array.isArray(info.heroBanners) && info.heroBanners.length > 0) {
-        return info.heroBanners;
-      }
-    }
-    return DEFAULT_HERO_BANNERS;
-  });
-
-  const [loading, setLoading] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const cached = getCachedData('categories');
-      const list = cached?.data || cached || [];
-      if (Array.isArray(list) && list.length > 0) return false;
-    }
-    return true;
-  });
+  const [categories, setCategories] = useState([]);
+  const [heroBanners, setHeroBanners] = useState(DEFAULT_HERO_BANNERS);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Immediately hydrate from fast cache on client mount
+    const cachedCats = getCachedData('categories');
+    const catList = cachedCats?.data || cachedCats || [];
+    if (Array.isArray(catList) && catList.length > 0) {
+      setCategories(catList);
+      setLoading(false);
+    }
+
+    const cachedStore = getCachedData('store_info');
+    const info = cachedStore?.data || cachedStore || {};
+    if (Array.isArray(info.heroBanners) && info.heroBanners.length > 0) {
+      setHeroBanners(info.heroBanners);
+    }
+
+    // 2. Background network revalidation
     async function loadData() {
-      // If we don't have categories yet, show skeleton, else revalidate silently in background
-      if (categories.length === 0) {
-        setLoading(true);
-      }
       try {
         const [catRes, infoRes] = await Promise.all([
           getCategories().catch(() => ({ data: [] })),

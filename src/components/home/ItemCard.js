@@ -1,18 +1,19 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useCart } from '@/context/CartContext';
 import { formatPrice } from '@/lib/utils';
 import { Plus, Minus, ChevronDown, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import VariantSelectModal from '@/components/home/VariantSelectModal';
 
-export default function ItemCard({ item, className }) {
-  const { items, addItem, removeItem, getItemQty } = useCart();
+function ItemCard({ item, className }) {
+  const { addItem, removeItem, getItemQty } = useCart();
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
   const hasVariants = Array.isArray(item.variants) && item.variants.length > 0;
-  const isOutOfStock = (() => {
+  
+  const isOutOfStock = useMemo(() => {
     if (typeof item.stock === 'number') return item.stock <= 0;
     if (item.stock && typeof item.stock === 'object') {
       const full = typeof item.stock.quantity === 'number' ? item.stock.quantity : 0;
@@ -20,9 +21,9 @@ export default function ItemCard({ item, className }) {
       return (full <= 0 && loose <= 0);
     }
     return false;
-  })();
+  }, [item.stock]);
 
-  const displayName = (() => {
+  const displayName = useMemo(() => {
     let name = item.displayName || item.name || '';
     // Strip raw pricing suffixes e.g. " 160/-", " 10/-", " 5/-"
     name = name.replace(/\s*\b\d+\/-\s*/g, ' ');
@@ -32,7 +33,7 @@ export default function ItemCard({ item, className }) {
       name = name.replace(/^gemini/i, 'Gemini Tea');
     }
     return name.replace(/\s+/g, ' ').trim() || item.name;
-  })();
+  }, [item.displayName, item.name]);
 
   const numMrp = Number(item.mrp) || 0;
   const numPrice = Number(item.retailPrice) || 0;
@@ -46,7 +47,7 @@ export default function ItemCard({ item, className }) {
     : (item.variants?.length || 0) + 1;
 
   // Format unit / pack size display below title (e.g. "500 g", "1 kg", "1 ltr")
-  const unitDisplay = (() => {
+  const unitDisplay = useMemo(() => {
     if (item.displayUnit) return item.displayUnit;
     const nameToScan = item.displayName || item.originalName || item.name || '';
     if (/\b1\/2\s*kg\b/i.test(nameToScan)) return '500 g';
@@ -68,7 +69,7 @@ export default function ItemCard({ item, className }) {
     }
     const baseU = item.unitType || 'unit';
     return /^\d+/.test(baseU) ? baseU : `${item.baseQty || 1} ${baseU}`;
-  })();
+  }, [item.displayUnit, item.displayName, item.originalName, item.name, item.baseUnit, item.unitType, item.baseQty]);
 
   // If item has variants, total quantity across all variants of this product
   const totalQty = getItemQty(item._id);
@@ -109,6 +110,8 @@ export default function ItemCard({ item, className }) {
             <img
               src={item.images[0]}
               alt={displayName}
+              loading="lazy"
+              decoding="async"
               onError={() => setImgError(true)}
               className={cn(
                 'w-full h-full object-contain mix-blend-multiply p-1 group-hover:scale-105 transition duration-200',
@@ -252,3 +255,5 @@ export default function ItemCard({ item, className }) {
     </>
   );
 }
+
+export default memo(ItemCard);

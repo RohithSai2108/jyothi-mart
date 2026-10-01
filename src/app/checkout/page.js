@@ -21,7 +21,9 @@ import LocationPickerModal from '@/components/common/LocationPickerModal';
 
 export default function CheckoutPage() {
   const { user, loading: authLoading, openLoginModal } = useAuth();
-  const { cartItems, cartTotal, clearCart } = useCart();
+  const cartContext = useCart();
+  const cartItems = cartContext?.cartItems || cartContext?.items || [];
+  const { cartTotal = 0, clearCart } = cartContext || {};
   const {
     address,
     coords,

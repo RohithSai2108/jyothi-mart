@@ -19,26 +19,25 @@ const CATEGORY_COLORS = [
 
 export default function CategoriesPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const cached = getCachedData('categories');
-      const list = cached?.data || cached || [];
-      if (Array.isArray(list) && list.length > 0) return list;
-    }
-    return [];
-  });
-  const [loading, setLoading] = useState(() => categories.length === 0);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Immediately hydrate from cache on client mount
+    const cached = getCachedData('categories');
+    const list = cached?.data || cached || [];
+    if (Array.isArray(list) && list.length > 0) {
+      setCategories(list);
+      setLoading(false);
+    }
+
+    // 2. Background revalidation
     async function load() {
-      if (categories.length === 0) {
-        setLoading(true);
-      }
       try {
         const res = await getCategories();
-        const list = res.data?.data || res.data || [];
-        if (Array.isArray(list) && list.length > 0) {
-          setCategories(list);
+        const freshList = res.data?.data || res.data || [];
+        if (Array.isArray(freshList) && freshList.length > 0) {
+          setCategories(freshList);
         }
       } catch (err) {
         console.error('Failed to load categories:', err);

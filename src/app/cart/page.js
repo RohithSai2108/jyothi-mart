@@ -1,12 +1,14 @@
 'use client';
 import { useCart } from '@/context/CartContext';
+import { useLocation } from '@/context/LocationContext';
 import { formatPrice } from '@/lib/utils';
 import { Plus, Minus, Trash2, ArrowLeft, ShoppingBag, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CartPage() {
   const { items, addItem, removeItem, cartTotal, cartSavings } = useCart();
-  const deliveryFee = 15;
+  const { storeInfo } = useLocation();
+  const deliveryFee = typeof storeInfo?.deliveryFee === 'number' ? storeInfo.deliveryFee : 15;
   const grandTotal = cartTotal + deliveryFee;
 
   if (items.length === 0) {

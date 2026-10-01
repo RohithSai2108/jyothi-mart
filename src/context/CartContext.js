@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const CartContext = createContext();
 
@@ -30,7 +30,7 @@ export function CartProvider({ children }) {
     }
   }, [items, hasMounted]);
 
-  const addItem = (item, variant = null) => {
+  const addItem = useCallback((item, variant = null) => {
     setItems((prev) => {
       const uniqueId = variant
         ? `${item._id}_${variant.variantId || variant.label}`
@@ -68,9 +68,9 @@ export function CartProvider({ children }) {
         },
       ];
     });
-  };
+  }, []);
 
-  const removeItem = (uniqueId) => {
+  const removeItem = useCallback((uniqueId) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.itemId === uniqueId);
       if (existing?.qty > 1) {
@@ -80,9 +80,9 @@ export function CartProvider({ children }) {
       }
       return prev.filter((i) => i.itemId !== uniqueId);
     });
-  };
+  }, []);
 
-  const updateQty = (uniqueId, qty) => {
+  const updateQty = useCallback((uniqueId, qty) => {
     if (qty <= 0) {
       setItems((prev) => prev.filter((i) => i.itemId !== uniqueId));
     } else {
@@ -90,11 +90,11 @@ export function CartProvider({ children }) {
         prev.map((i) => (i.itemId === uniqueId ? { ...i, qty } : i))
       );
     }
-  };
+  }, []);
 
-  const clearCart = () => setItems([]);
+  const clearCart = useCallback(() => setItems([]), []);
 
-  const getItemQty = (productId, variantId = null) => {
+  const getItemQty = useCallback((productId, variantId = null) => {
     if (variantId) {
       const uniqueId = `${productId}_${variantId}`;
       const found = items.find((i) => i.itemId === uniqueId);
@@ -104,7 +104,7 @@ export function CartProvider({ children }) {
     return items
       .filter((i) => i.productId === productId || i.itemId === productId)
       .reduce((acc, i) => acc + i.qty, 0);
-  };
+  }, [items]);
 
   const cartCount = items.reduce((acc, item) => acc + item.qty, 0);
   const cartTotal = items.reduce((acc, item) => acc + item.price * item.qty, 0);
@@ -119,6 +119,7 @@ export function CartProvider({ children }) {
     <CartContext.Provider
       value={{
         items,
+        cartItems: items,
         addItem,
         removeItem,
         updateQty,

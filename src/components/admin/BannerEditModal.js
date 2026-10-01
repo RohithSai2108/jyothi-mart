@@ -46,33 +46,37 @@ const CARD2_ICONS = [
 ];
 
 export default function BannerEditModal({ banner, isOpen, onClose, onSave }) {
-  const [form, setForm] = useState({
-    id: banner.id || `banner-${Date.now()}`,
-    type: banner.type || 'zepto_style',
-    active: banner.active !== false,
-    title: banner.title || 'ALL NEW JYOTHI MART EXPERIENCE',
-    subtitle: banner.subtitle || '',
-    card1Text: banner.card1Text || '₹0 FEES',
-    card1Icon: banner.card1Icon || 'bag',
-    card2Text: banner.card2Text || 'EVERYDAY LOW PRICES*',
-    card2Icon: banner.card2Icon || 'price_down',
-    features: Array.isArray(banner.features) && banner.features.length >= 3
+  const [form, setForm] = useState(() => ({
+    id: banner?.id || `banner-${Date.now()}`,
+    type: banner?.type || 'zepto_style',
+    active: banner?.active !== false,
+    title: banner?.title || 'ALL NEW JYOTHI MART EXPERIENCE',
+    subtitle: banner?.subtitle || '',
+    card1Text: banner?.card1Text || '₹0 FEES',
+    card1Icon: banner?.card1Icon || 'bag',
+    card2Text: banner?.card2Text || 'EVERYDAY LOW PRICES*',
+    card2Icon: banner?.card2Icon || 'price_down',
+    features: Array.isArray(banner?.features) && banner.features.length >= 3
       ? [...banner.features]
       : [
-          banner.features?.[0] || '₹0 Handling Fee',
-          banner.features?.[1] || '₹0 Delivery Fee*',
-          banner.features?.[2] || '₹0 Rain & Surge Fee',
+          banner?.features?.[0] || '₹0 Handling Fee',
+          banner?.features?.[1] || '₹0 Delivery Fee*',
+          banner?.features?.[2] || '₹0 Rain & Surge Fee',
         ],
-    termsText: banner.termsText || '*T&C Apply. Above specific minimum order value',
-    badgeText: banner.badgeText || 'Zero Extra Charges',
-    bgTheme: banner.bgTheme || 'purple',
-    imageUrl: banner.imageUrl || '',
-    linkUrl: banner.linkUrl || '',
-  });
+    termsText: banner?.termsText || '*T&C Apply. Above specific minimum order value',
+    badgeText: banner?.badgeText || 'Zero Extra Charges',
+    bgTheme: banner?.bgTheme || 'purple',
+    imageUrl: banner?.imageUrl || '',
+    linkUrl: banner?.linkUrl || '',
+  }));
 
   const [compressing, setCompressing] = useState(false);
   const [imageError, setImageError] = useState('');
   const fileInputRef = useRef(null);
+
+  const updateField = (field, val) => {
+    setForm((prev) => ({ ...prev, [field]: val }));
+  };
 
   const handleBannerFile = async (e) => {
     const file = e.target.files?.[0];
@@ -161,10 +165,6 @@ export default function BannerEditModal({ banner, isOpen, onClose, onSave }) {
     } finally {
       setCompressing(false);
     }
-  };
-
-  const updateField = (field, val) => {
-    setForm((prev) => ({ ...prev, [field]: val }));
   };
 
   const updateFeature = (idx, val) => {
