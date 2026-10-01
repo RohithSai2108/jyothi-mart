@@ -41,7 +41,7 @@ export function loadGoogleMapsScript(apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAP
       }
 
       const script = document.createElement('script');
-      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&libraries=places,geometry';
+      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&libraries=places,geometry&loading=async';
       script.async = true;
       script.defer = true;
       script.onload = () => {
