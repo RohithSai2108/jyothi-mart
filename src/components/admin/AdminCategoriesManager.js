@@ -11,11 +11,9 @@ import {
   ClipboardPaste,
   Image as ImageIcon,
   FolderTree,
-  ChevronRight,
   Check,
   X,
   Loader2,
-  Package,
 } from 'lucide-react';
 import {
   getAdminCategories,

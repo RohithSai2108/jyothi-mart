@@ -5,12 +5,7 @@ import {
   Navigation,
   Phone,
   Crosshair,
-  Package,
-  Layers,
-  ExternalLink,
   AlertCircle,
-  Truck,
-  CheckCircle,
 } from 'lucide-react';
 import { loadGoogleMapsScript } from '@/lib/googleMapsLoader';
 import { formatPrice } from '@/lib/utils';

@@ -11,11 +11,9 @@ import {
   ChevronDown,
   ChevronUp,
   Map,
-  Clock,
   AlertCircle,
-  Check,
 } from 'lucide-react';
-import { formatPrice, formatDate, getOrderStatusLabel } from '@/lib/utils';
+import { formatPrice, getOrderStatusLabel } from '@/lib/utils';
 
 import DeliveryRouteMap from './DeliveryRouteMap';
 

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getCategories, getCachedData } from '@/lib/api';
-import { ChevronRight, Grid, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { ChevronRight, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const CATEGORY_COLORS = [

@@ -6,13 +6,11 @@ import {
   ClipboardPaste,
   Trash2,
   Star,
-  Image as ImageIcon,
   Loader2,
   Plus,
   Package,
   Scale,
   Sparkles,
-  Percent,
   Check,
   Layers,
 } from 'lucide-react';

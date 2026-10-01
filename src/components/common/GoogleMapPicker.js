@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Crosshair, Loader2, Plus, Minus, Search, MapPin } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Crosshair, Loader2, Plus, Minus, Search } from 'lucide-react';
 import { loadGoogleMapsScript } from '@/lib/googleMapsLoader';
 import { reverseGeocode, getCurrentPosition } from '@/lib/geoUtils';
 

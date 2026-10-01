@@ -6,7 +6,6 @@ import {
   Clock,
   RefreshCw,
   Power,
-  TrendingUp,
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 

@@ -14,12 +14,14 @@ export default function BottomNav() {
     return null;
   }
 
-  // Admin users browsing store
-  if (isAdmin) {
-    return null;
-  }
-
-  const navItems = isDelivery
+  const navItems = isAdmin
+    ? [
+        { icon: Home, label: 'Home', href: '/' },
+        { icon: Grid, label: 'Categories', href: '/category' },
+        { icon: Truck, label: 'Delivery', href: '/delivery' },
+        { icon: Package, label: 'Admin', href: '/admin' },
+      ]
+    : isDelivery
     ? [
         { icon: Home, label: 'Home', href: '/' },
         { icon: Grid, label: 'Categories', href: '/category' },

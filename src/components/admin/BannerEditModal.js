@@ -3,13 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Sparkles,
-  ShoppingBag,
-  Percent,
   Tag,
-  Truck,
-  Clock,
-  ShieldCheck,
-  TrendingDown,
   Check,
   Palette,
   Image as ImageIcon,

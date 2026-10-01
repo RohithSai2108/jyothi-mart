@@ -10,7 +10,6 @@ import {
   ShoppingBag,
   Loader2,
   Phone,
-  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
@@ -125,13 +124,18 @@ export default function CheckoutPage() {
     item.productId || (item.itemId ? String(item.itemId).split('_')[0] : item._id);
 
   const handlePlaceOrder = async () => {
+    if (!flatNo.trim()) {
+      setError('Please enter your House / Flat / Street address to place the order.');
+      return;
+    }
+
     setPlacing(true);
     setError('');
 
     const effectiveAddressParts = [
-      flatNo,
-      floor ? `Floor: ${floor}` : '',
-      landmark ? `Near ${landmark}` : '',
+      flatNo.trim(),
+      floor ? `Floor: ${floor.trim()}` : '',
+      landmark ? `Near ${landmark.trim()}` : '',
       address && address !== 'Detecting location...' ? address : 'Metpally',
     ].filter(Boolean);
 

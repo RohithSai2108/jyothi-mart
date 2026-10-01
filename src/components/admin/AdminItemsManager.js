@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Search, Package, RefreshCw, Pencil, CheckCircle2, EyeOff, Sparkles, Layers } from 'lucide-react';
+import { Search, Package, RefreshCw, Pencil, Layers } from 'lucide-react';
 import { getAdminItems, updateAdminItem } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
 import ItemEditModal from '@/components/admin/ItemEditModal';

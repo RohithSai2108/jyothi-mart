@@ -6,24 +6,15 @@ import {
   Truck,
   Navigation,
   CheckCircle,
-  Phone,
-  MapPin,
-  Package,
-  RefreshCw,
-  Clock,
   ArrowLeft,
   Check,
   Search,
   Map,
   Filter,
-  TrendingUp,
-  AlertCircle,
-  IndianRupee,
-  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getDeliveryOrders, updateDeliveryOrderStatus, getStoreInfo } from '@/lib/api';
-import { formatPrice, formatDate, getOrderStatusLabel } from '@/lib/utils';
+import { formatPrice } from '@/lib/utils';
 import DeliveryStatsCard from '@/components/delivery/DeliveryStatsCard';
 import DeliveryOrderCard from '@/components/delivery/DeliveryOrderCard';
 import DeliveryOtpModal from '@/components/delivery/DeliveryOtpModal';
@@ -291,9 +282,13 @@ export default function DeliveryDashboardPage() {
           {/* Top Right: Status Badge & Admin Indicator */}
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <span className="text-[10px] font-extrabold bg-green-50 text-[#0C831F] border border-green-200 px-2 py-0.5 rounded-full">
-                Admin Mode
-              </span>
+              <Link
+                href="/admin"
+                className="text-[10px] font-extrabold bg-green-50 text-[#0C831F] hover:bg-green-100 border border-green-200 px-2 py-0.5 rounded-full transition"
+                title="Go to Admin Dashboard"
+              >
+                Admin Mode &rarr;
+              </Link>
             )}
             <span
               className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${

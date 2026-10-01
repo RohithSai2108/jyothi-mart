@@ -1,5 +1,5 @@
 'use client';
-import { X, Plus, Minus, Check, Package, Sparkles } from 'lucide-react';
+import { X, Plus, Minus, Package } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { formatPrice } from '@/lib/utils';
 

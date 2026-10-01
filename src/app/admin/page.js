@@ -9,15 +9,12 @@ import {
   Users,
   ExternalLink,
   LogOut,
-  ShieldCheck,
   ChevronRight,
-  Clock,
-  CheckCircle2,
   Menu,
   X,
   Settings,
   FolderTree,
-  Layers,
+  Truck,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getAdminOrders, getAdminItems, getAdminUsers } from '@/lib/api';
@@ -221,6 +218,18 @@ export default function AdminPage() {
               <div className="flex items-center gap-2.5">
                 <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-[#0C831F]" />
                 <span>View Live Site</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+            </Link>
+
+            {/* Delivery Partner Portal Link */}
+            <Link
+              href="/delivery"
+              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition group"
+            >
+              <div className="flex items-center gap-2.5">
+                <Truck className="w-4 h-4 text-gray-500 group-hover:text-purple-600" />
+                <span>Delivery Partner Portal</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
             </Link>

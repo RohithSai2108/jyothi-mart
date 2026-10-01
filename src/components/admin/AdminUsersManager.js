@@ -1,8 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Users, Phone, Shield, Truck, User, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Users, Shield, Truck, User, RefreshCw } from 'lucide-react';
 import { getAdminUsers, updateAdminUser } from '@/lib/api';
-import { formatDate } from '@/lib/utils';
 
 export default function AdminUsersManager() {
   const [users, setUsers] = useState([]);

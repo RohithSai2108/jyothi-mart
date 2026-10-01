@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -9,7 +9,6 @@ import {
   Layers,
   Search,
   X,
-  SlidersHorizontal,
   ArrowUpDown,
   Sparkles,
   ArrowRight,

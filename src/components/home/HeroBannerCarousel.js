@@ -13,7 +13,6 @@ import {
   Clock,
   ShieldCheck,
   TrendingDown,
-  ArrowRight,
 } from 'lucide-react';
 
 // Default banners if none configured or while loading

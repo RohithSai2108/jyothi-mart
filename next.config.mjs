@@ -22,15 +22,9 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
 
-  // Aggressive HTTP caching for static assets (JS/CSS/fonts)
+  // Aggressive HTTP caching for static assets
   async headers() {
     return [
-      {
-        source: '/_next/static/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
-      },
       {
         source: '/manifest.json',
         headers: [

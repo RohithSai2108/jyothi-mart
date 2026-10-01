@@ -2,7 +2,7 @@
 import { useState, useMemo, memo } from 'react';
 import { useCart } from '@/context/CartContext';
 import { formatPrice } from '@/lib/utils';
-import { Plus, Minus, ChevronDown, Package } from 'lucide-react';
+import { Plus, Minus, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import VariantSelectModal from '@/components/home/VariantSelectModal';
 

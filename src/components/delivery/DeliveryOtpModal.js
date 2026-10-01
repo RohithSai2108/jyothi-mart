@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { X, CheckCircle, ShieldCheck, KeyRound, AlertCircle, FileText } from 'lucide-react';
+import { X, CheckCircle, KeyRound, AlertCircle, FileText } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 
 export default function DeliveryOtpModal({

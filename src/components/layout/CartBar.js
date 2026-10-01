@@ -10,7 +10,12 @@ export default function CartBar() {
   const pathname = usePathname();
   const { cartCount, cartTotal } = useCart();
 
-  if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
+  if (
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/delivery') ||
+    pathname === '/cart' ||
+    pathname === '/checkout'
+  ) {
     return null;
   }
 

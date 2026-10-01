@@ -57,8 +57,8 @@ export default function AccountPage() {
           {
             id: '1',
             label: 'Home',
-            address: '14, 2nd Cross, 5th Block, Koramangala',
-            landmark: 'Near Jyothi Mart',
+            address: 'H.No 4-52, Old Bus Stand Road, Metpally',
+            landmark: 'Near Jyothi Mart Store',
           },
         ];
         setAddresses(initial);
