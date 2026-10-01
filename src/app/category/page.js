@@ -21,6 +21,28 @@ export default function CategoriesPage() {
   const router = useRouter();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const loadCategories = async (forceRefresh = false) => {
+    if (forceRefresh) setLoading(true);
+    setError(null);
+    try {
+      const res = await getCategories(forceRefresh, null, 5000);
+      const freshList = res.data?.data || res.data || [];
+      if (Array.isArray(freshList) && freshList.length > 0) {
+        setCategories(freshList);
+      } else if (categories.length === 0) {
+        setError('Categories took too long to load');
+      }
+    } catch (err) {
+      console.error('Failed to load categories:', err);
+      if (categories.length === 0) {
+        setError('Loading timed out (5s limit). Please check your connection.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // 1. Immediately hydrate from cache on client mount
@@ -31,21 +53,8 @@ export default function CategoriesPage() {
       setLoading(false);
     }
 
-    // 2. Background revalidation
-    async function load() {
-      try {
-        const res = await getCategories();
-        const freshList = res.data?.data || res.data || [];
-        if (Array.isArray(freshList) && freshList.length > 0) {
-          setCategories(freshList);
-        }
-      } catch (err) {
-        console.error('Failed to load categories:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    // 2. Fetch fresh data with 5s timeout
+    loadCategories();
   }, []);
 
   return (
@@ -75,9 +84,19 @@ export default function CategoriesPage() {
             ))}
           </div>
         ) : categories.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
+          <div className="text-center py-16 text-gray-500 bg-white rounded-2xl border border-gray-200 p-6">
             <ShoppingBag className="w-12 h-12 mx-auto text-gray-300 mb-2" />
-            <p className="text-sm">No categories available at this moment</p>
+            <p className="text-sm font-semibold text-gray-700">
+              {error || 'No categories available at this moment'}
+            </p>
+            {error && (
+              <button
+                onClick={() => loadCategories(true)}
+                className="mt-4 px-4 py-2 bg-[#0C831F] text-white text-xs font-bold rounded-xl hover:bg-green-700 transition"
+              >
+                Retry Loading
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">

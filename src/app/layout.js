@@ -17,7 +17,6 @@ export const metadata = {
   keywords:
     'grocery delivery, metpally, telangana, kandipappu, biyyam, online grocery, jyothi mart, fresh groceries, 10 minute delivery',
   manifest: '/manifest.json',
-  themeColor: '#0C831F',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

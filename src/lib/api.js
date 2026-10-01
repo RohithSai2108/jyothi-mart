@@ -65,24 +65,64 @@ export const clearStoreCache = () => {
   }
 };
 
+// ─────────────────────────────────────────────
+// PROMISE TIMEOUT UTILITY (Defaults to 5s max delay)
+// ─────────────────────────────────────────────
+export const withTimeout = (promise, ms = 5000, errorMsg = 'Request timed out') => {
+  let timer;
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(errorMsg);
+      err.isTimeout = true;
+      reject(err);
+    }, ms);
+  });
+
+  return Promise.race([
+    promise
+      .then((res) => {
+        clearTimeout(timer);
+        return res;
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        throw err;
+      }),
+    timeoutPromise,
+  ]);
+};
+
 const fetchWithCache = async (
   cacheKey,
   fetchFn,
   ttlMs = 180000,
   forceRefresh = false,
-  onRevalidate = null
+  onRevalidate = null,
+  timeoutMs = 5000
 ) => {
   const cached = !forceRefresh ? getCachedData(cacheKey) : null;
 
   // Background network revalidation
   const executeFetch = async () => {
     try {
-      const res = await fetchFn();
+      // Apply 5-second or specified dynamic timeout to fetch function
+      const res = await withTimeout(
+        fetchFn(),
+        timeoutMs,
+        `${cacheKey} request exceeded ${timeoutMs}ms limit`
+      );
       setCachedData(cacheKey, res.data, ttlMs);
       if (typeof onRevalidate === 'function') {
         onRevalidate(res.data);
       }
       return res;
+    } catch (err) {
+      // If network fails or times out, fallback to cached data if available
+      const fallbackCache = getCachedData(cacheKey);
+      if (fallbackCache) {
+        return { data: fallbackCache, fromCache: true, error: err };
+      }
+      throw err;
     } finally {
       inFlightRequests.delete(cacheKey);
     }
@@ -113,17 +153,18 @@ export const sendOtp = (phone) => api.post('/auth/send-otp', { phone });
 export const verifyOtp = (phone, otp, firebaseToken, firebaseUid) =>
   api.post('/auth/verify-otp', { phone, otp, firebaseToken, firebaseUid });
 
-// Store Public Data with Fast SWR Caching
+// Store Public Data with Fast SWR Caching & 5-Second Timeout Protection
 export const getStoreInfo = (forceRefresh = false, onRevalidate = null) =>
-  fetchWithCache('store_info', () => api.get('/info'), 180000, forceRefresh, onRevalidate);
+  fetchWithCache('store_info', () => api.get('/info'), 180000, forceRefresh, onRevalidate, 5000);
 
-export const getCategories = (forceRefresh = false, onRevalidate = null) =>
+export const getCategories = (forceRefresh = false, onRevalidate = null, timeoutMs = 5000) =>
   fetchWithCache(
     'categories',
     () => api.get('/categories').catch(() => api.get('/catalog/categories')),
     180000,
     forceRefresh,
-    onRevalidate
+    onRevalidate,
+    timeoutMs
   );
 
 export const getSubcategories = (categoryId, forceRefresh = false, onRevalidate = null) =>

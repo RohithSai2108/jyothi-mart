@@ -1,7 +1,7 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Grid, Package, User } from 'lucide-react';
+import { Home, Grid, Package, User, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 
@@ -9,16 +9,29 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { isAdmin, isDelivery } = useAuth();
 
-  if (isAdmin || isDelivery || pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
+  // Hide on admin and delivery portals
+  if (pathname.startsWith('/admin') || pathname.startsWith('/delivery')) {
     return null;
   }
 
-  const navItems = [
-    { icon: Home, label: 'Home', href: '/' },
-    { icon: Grid, label: 'Categories', href: '/category' },
-    { icon: Package, label: 'Orders', href: '/orders' },
-    { icon: User, label: 'Account', href: '/account' },
-  ];
+  // Admin users browsing store
+  if (isAdmin) {
+    return null;
+  }
+
+  const navItems = isDelivery
+    ? [
+        { icon: Home, label: 'Home', href: '/' },
+        { icon: Grid, label: 'Categories', href: '/category' },
+        { icon: Truck, label: 'Delivery', href: '/delivery' },
+        { icon: User, label: 'Account', href: '/account' },
+      ]
+    : [
+        { icon: Home, label: 'Home', href: '/' },
+        { icon: Grid, label: 'Categories', href: '/category' },
+        { icon: Package, label: 'Orders', href: '/orders' },
+        { icon: User, label: 'Account', href: '/account' },
+      ];
 
   return (
     <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-40 lg:hidden">

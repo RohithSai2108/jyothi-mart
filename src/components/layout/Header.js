@@ -13,6 +13,7 @@ import {
   LogOut,
   LogIn,
   ChevronRight,
+  Truck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -23,7 +24,7 @@ import LocationPickerModal from '@/components/common/LocationPickerModal';
 export default function Header() {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { user, isAdmin, logout, openLoginModal } = useAuth();
+  const { user, isAdmin, isDelivery, logout, openLoginModal } = useAuth();
   const router = useRouter();
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const { address, deliveryTimeEstimate, isServiceable, loadingLocation } = useLocation();
@@ -90,6 +91,16 @@ export default function Header() {
                   >
                     <ShieldCheck className="w-3.5 h-3.5" />
                     <span>Admin</span>
+                  </Link>
+                )}
+
+                {isDelivery && (
+                  <Link
+                    href="/delivery"
+                    className="inline-flex items-center gap-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 px-2.5 py-1 rounded-full text-xs font-bold transition"
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Delivery</span>
                   </Link>
                 )}
 
@@ -203,6 +214,23 @@ export default function Header() {
                   <span className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-yellow-300" />
                     <span>Admin Control Center</span>
+                  </span>
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
+
+            {/* Delivery Partner Access Button */}
+            {isDelivery && (
+              <div className="p-4 bg-purple-50/70 border-b border-purple-100">
+                <Link
+                  href="/delivery"
+                  onClick={() => setDrawerOpen(false)}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-between text-xs shadow-sm transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-white" />
+                    <span>Delivery Partner Portal</span>
                   </span>
                   <ChevronRight className="w-4 h-4" />
                 </Link>
