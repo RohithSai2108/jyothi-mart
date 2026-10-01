@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { sendOtp } from '@/lib/api';
 import { auth } from '@/lib/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
@@ -45,7 +45,7 @@ function LoginFormContent() {
   }, [step, countdown]);
 
   const getRecaptchaVerifier = () => {
-    if (!auth) throw new Error('Auth not initialized');
+    if (!auth) throw new Error('Authentication service is not available');
     clearRecaptcha();
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-page', {
       size: 'invisible',
@@ -77,9 +77,12 @@ function LoginFormContent() {
       clearRecaptcha();
       let msg = 'Failed to send OTP. Please check your number.';
       if (err.code === 'auth/invalid-phone-number') msg = 'Invalid mobile number format.';
-      else if (err.code === 'auth/operation-not-allowed') msg = 'SMS for India (+91) must be enabled in Firebase Console: Authentication > Settings > SMS region policy.';
-      else if (err.code === 'auth/quota-exceeded') msg = 'SMS quota exceeded for today. You can still test with OTP 1234.';
-      else if (err.code === 'auth/unauthorized-domain') msg = 'Domain not authorized in Firebase Console.';
+      else if (err.code === 'auth/operation-not-allowed')
+        msg = 'SMS for India (+91) must be enabled in Firebase Console: Authentication > Settings > SMS region policy.';
+      else if (err.code === 'auth/quota-exceeded')
+        msg = 'SMS quota exceeded for today. You can still test with OTP 1234.';
+      else if (err.code === 'auth/unauthorized-domain')
+        msg = 'Domain not authorized in Firebase Console.';
       else if (err.response?.data?.message) msg = err.response.data.message;
       else if (err.message) msg = err.message;
       setError(msg);
@@ -104,20 +107,30 @@ function LoginFormContent() {
     try {
       let firebaseToken = null;
       let firebaseUid = null;
+      let userData = null;
 
       if (cleanOtp === '1234') {
-        await login(cleanPhone, cleanOtp);
+        userData = await login(cleanPhone, cleanOtp);
       } else if (confirmationResult) {
         const userCredential = await confirmationResult.confirm(cleanOtp);
         firebaseToken = await userCredential.user.getIdToken();
         firebaseUid = userCredential.user.uid;
-        await login(cleanPhone, cleanOtp, firebaseToken, firebaseUid);
+        userData = await login(cleanPhone, cleanOtp, firebaseToken, firebaseUid);
       } else {
-        await login(cleanPhone, cleanOtp);
+        userData = await login(cleanPhone, cleanOtp);
       }
 
-      const redirectUrl = searchParams.get('redirect') || '/';
-      router.push(redirectUrl);
+      // Automatic Role Detection & Routing
+      const explicitRedirect = searchParams.get('redirect');
+      if (explicitRedirect) {
+        router.push(explicitRedirect);
+      } else if (userData?.role === 'admin') {
+        router.push('/admin');
+      } else if (userData?.role === 'delivery') {
+        router.push('/delivery');
+      } else {
+        router.push('/');
+      }
     } catch (err) {
       console.error('Login error:', err);
       let msg = 'Invalid OTP. Please check the code and try again.';
@@ -132,12 +145,13 @@ function LoginFormContent() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 w-full max-w-sm">
+      <div className="bg-white p-7 sm:p-8 rounded-3xl shadow-sm border border-gray-100 w-full max-w-sm">
+        {/* Branding Header */}
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-green-50 text-[#0C831F] border border-green-200 flex items-center justify-center mx-auto mb-3 font-extrabold text-xl">
+          <div className="w-12 h-12 rounded-2xl bg-green-50 text-[#0C831F] border border-green-200 flex items-center justify-center mx-auto mb-3 font-extrabold text-xl shadow-xs">
             JM
           </div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Jyothi Mart</h1>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Jyothi Mart</h1>
           <p className="text-xs text-gray-500 mt-1">
             {step === 1 ? 'Enter your mobile number to sign in' : `Enter OTP sent to +91 ${phone}`}
           </p>
@@ -150,6 +164,7 @@ function LoginFormContent() {
         )}
 
         <div id="recaptcha-container-page"></div>
+
         {step === 1 ? (
           <form onSubmit={handleSendOtp} className="space-y-4">
             <div>
@@ -175,7 +190,7 @@ function LoginFormContent() {
             <button
               type="submit"
               disabled={loading || phone.length < 10}
-              className="w-full bg-[#0C831F] hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+              className="w-full bg-[#0C831F] hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed active:scale-98"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -210,7 +225,7 @@ function LoginFormContent() {
             <button
               type="submit"
               disabled={loading || (otp.length !== 6 && otp !== '1234')}
-              className="w-full bg-[#0C831F] hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full bg-[#0C831F] hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
             >
               {loading ? (
                 <>
@@ -218,7 +233,7 @@ function LoginFormContent() {
                   <span>Verifying...</span>
                 </>
               ) : (
-                <span>Verify & Enter Store</span>
+                <span>Verify & Enter</span>
               )}
             </button>
 
@@ -253,13 +268,6 @@ function LoginFormContent() {
             </div>
           </form>
         )}
-
-        <div className="mt-6 pt-5 border-t border-gray-100 text-center">
-          <div className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 text-[11px] text-gray-500">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#0C831F]" />
-            <span>Admin Test: <strong>1234567890</strong> (OTP 1234)</span>
-          </div>
-        </div>
       </div>
     </div>
   );

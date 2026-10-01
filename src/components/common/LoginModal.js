@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { X, ArrowRight, Loader2, KeyRound, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { sendOtp } from '@/lib/api';
@@ -7,6 +8,7 @@ import { auth } from '@/lib/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 
 export default function LoginModal() {
+  const router = useRouter();
   const { isLoginModalOpen, closeLoginModal, login } = useAuth();
 
   const [step, setStep] = useState(1); // 1 = phone, 2 = otp
@@ -159,22 +161,30 @@ export default function LoginModal() {
     try {
       let firebaseToken = null;
       let firebaseUid = null;
+      let userData = null;
 
       if (cleanOtp === '1234') {
         // Fallback test OTP for testing
-        await login(cleanPhone, cleanOtp);
+        userData = await login(cleanPhone, cleanOtp);
       } else if (confirmationResult) {
         // Confirm real Firebase SMS OTP
         const userCredential = await confirmationResult.confirm(cleanOtp);
         firebaseToken = await userCredential.user.getIdToken();
         firebaseUid = userCredential.user.uid;
-        await login(cleanPhone, cleanOtp, firebaseToken, firebaseUid);
+        userData = await login(cleanPhone, cleanOtp, firebaseToken, firebaseUid);
       } else {
         // Direct verification attempt with backend
-        await login(cleanPhone, cleanOtp);
+        userData = await login(cleanPhone, cleanOtp);
       }
 
       closeLoginModal();
+
+      // Automatically detect role and route to the corresponding portal
+      if (userData?.role === 'admin') {
+        router.push('/admin');
+      } else if (userData?.role === 'delivery') {
+        router.push('/delivery');
+      }
     } catch (err) {
       console.error('Verification error:', err);
       let msg = 'Invalid OTP. Please check the code and try again.';

@@ -13,37 +13,16 @@ export default function ShopByCategory({
 }) {
   const router = useRouter();
   const sectionRef = useRef(null);
-  const [isInView, setIsInView] = useState(false);
   const [timeoutExceeded, setTimeoutExceeded] = useState(false);
   const [loadedImages, setLoadedImages] = useState({});
 
-  // 1. Dynamic Intersection Observer for Lazy Rendering
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsInView(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '300px' } // Pre-render 300px before scrolling into view
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
-  // 2. Strict 5-Second (5000ms) Dynamic Timeout Guard
+  // 2-Second (2000ms) Dynamic Timeout Guard
   useEffect(() => {
     let timer = null;
     if (loading && (!categories || categories.length === 0)) {
       timer = setTimeout(() => {
         setTimeoutExceeded(true);
-      }, 5000);
+      }, 2000);
     } else {
       setTimeoutExceeded(false);
     }
@@ -67,7 +46,7 @@ export default function ShopByCategory({
     setLoadedImages((prev) => ({ ...prev, [catId]: true }));
   };
 
-  // 3. Timeout fallback state after 5 seconds of loading without data
+  // Timeout fallback state after 2 seconds of loading without data
   if (timeoutExceeded && (!categories || categories.length === 0)) {
     return (
       <section ref={sectionRef} className="my-6 p-4 rounded-2xl bg-amber-50/60 border border-amber-200">
@@ -75,7 +54,7 @@ export default function ShopByCategory({
           <div className="flex items-center gap-2.5 text-amber-800">
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <div>
-              <p className="text-xs font-bold">Categories are taking longer than 5 seconds to load</p>
+              <p className="text-xs font-bold">Categories are taking longer than expected to load</p>
               <p className="text-[11px] text-amber-600">You may be experiencing a slow network connection.</p>
             </div>
           </div>
@@ -96,7 +75,7 @@ export default function ShopByCategory({
     );
   }
 
-  // 4. Modern Zepto Shimmer Skeleton while loading within 5s
+  // Shimmer Skeleton while loading within 2s
   if (loading && (!categories || categories.length === 0)) {
     return (
       <div ref={sectionRef} className="my-6">
@@ -156,7 +135,7 @@ export default function ShopByCategory({
         </Link>
       </div>
 
-      {/* Zepto-Style Category Grid with Lazy Loading & Smooth Transitions */}
+      {/* Category Grid — Eager rendering, no lazy loading */}
       <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2.5 sm:gap-3.5 md:gap-4">
         {categories.map((cat, index) => {
           const catId = cat._id || cat.id || cat.slug;
@@ -186,8 +165,9 @@ export default function ShopByCategory({
                     <img
                       src={cat.image}
                       alt={cat.name}
-                      loading="lazy"
+                      loading="eager"
                       decoding="async"
+                      fetchPriority={index < 8 ? 'high' : 'auto'}
                       onLoad={() => handleImageLoad(catId)}
                       className={`w-full h-full object-contain group-hover:scale-108 transition-all duration-300 ${
                         isImgLoaded ? 'opacity-100' : 'opacity-0'
@@ -212,3 +192,4 @@ export default function ShopByCategory({
     </section>
   );
 }
+

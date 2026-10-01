@@ -66,9 +66,9 @@ export const clearStoreCache = () => {
 };
 
 // ─────────────────────────────────────────────
-// PROMISE TIMEOUT UTILITY (Defaults to 5s max delay)
+// PROMISE TIMEOUT UTILITY (Defaults to 2s max delay)
 // ─────────────────────────────────────────────
-export const withTimeout = (promise, ms = 5000, errorMsg = 'Request timed out') => {
+export const withTimeout = (promise, ms = 2000, errorMsg = 'Request timed out') => {
   let timer;
   const timeoutPromise = new Promise((_, reject) => {
     timer = setTimeout(() => {
@@ -98,14 +98,14 @@ const fetchWithCache = async (
   ttlMs = 180000,
   forceRefresh = false,
   onRevalidate = null,
-  timeoutMs = 5000
+  timeoutMs = 2000
 ) => {
   const cached = !forceRefresh ? getCachedData(cacheKey) : null;
 
   // Background network revalidation
   const executeFetch = async () => {
     try {
-      // Apply 5-second or specified dynamic timeout to fetch function
+      // Apply 2-second or specified dynamic timeout to fetch function
       const res = await withTimeout(
         fetchFn(),
         timeoutMs,
@@ -153,11 +153,11 @@ export const sendOtp = (phone) => api.post('/auth/send-otp', { phone });
 export const verifyOtp = (phone, otp, firebaseToken, firebaseUid) =>
   api.post('/auth/verify-otp', { phone, otp, firebaseToken, firebaseUid });
 
-// Store Public Data with Fast SWR Caching & 5-Second Timeout Protection
+// Store Public Data with Fast SWR Caching & 2-Second Timeout Protection
 export const getStoreInfo = (forceRefresh = false, onRevalidate = null) =>
-  fetchWithCache('store_info', () => api.get('/info'), 180000, forceRefresh, onRevalidate, 5000);
+  fetchWithCache('store_info', () => api.get('/info'), 180000, forceRefresh, onRevalidate, 2000);
 
-export const getCategories = (forceRefresh = false, onRevalidate = null, timeoutMs = 5000) =>
+export const getCategories = (forceRefresh = false, onRevalidate = null, timeoutMs = 2000) =>
   fetchWithCache(
     'categories',
     () => api.get('/categories').catch(() => api.get('/catalog/categories')),

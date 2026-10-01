@@ -1,16 +1,11 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   Truck,
-  Navigation,
   CheckCircle,
-  ArrowLeft,
   Check,
   Search,
   Map,
-  Filter,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getDeliveryOrders, updateDeliveryOrderStatus, getStoreInfo } from '@/lib/api';
@@ -18,17 +13,15 @@ import { formatPrice } from '@/lib/utils';
 import DeliveryStatsCard from '@/components/delivery/DeliveryStatsCard';
 import DeliveryOrderCard from '@/components/delivery/DeliveryOrderCard';
 import DeliveryOtpModal from '@/components/delivery/DeliveryOtpModal';
-
 import DeliveryRouteMap from '@/components/delivery/DeliveryRouteMap';
 
 export default function DeliveryDashboardPage() {
-  const { user, isDelivery, isAdmin, loading: authLoading } = useAuth();
-  const router = useRouter();
+  const { user, isDelivery, isAdmin } = useAuth();
 
   // Navigation & Filtering State
-  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'map' | 'completed' | 'earnings'
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'ready' | 'out'
-  const [completedFilter, setCompletedFilter] = useState('today'); // 'today' | 'week' | 'all'
+  const [activeTab, setActiveTab] = useState('active');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [completedFilter, setCompletedFilter] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Orders & Store Info State
@@ -58,26 +51,6 @@ export default function DeliveryDashboardPage() {
     }
   }, []);
 
-  const toggleDuty = () => {
-    const next = !isOnDuty;
-    setIsOnDuty(next);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('jm_delivery_onduty', String(next));
-    }
-    showToast(next ? 'You are now ON DUTY (Online)' : 'You are now OFF DUTY (Offline)');
-  };
-
-  // Protect Delivery route
-  useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.replace('/login?redirect=/delivery');
-      } else if (!isDelivery && !isAdmin) {
-        router.replace('/');
-      }
-    }
-  }, [user, isDelivery, isAdmin, authLoading, router]);
-
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3500);
@@ -92,7 +65,6 @@ export default function DeliveryDashboardPage() {
         const list = res.data?.data || res.data || [];
         const orderList = Array.isArray(list) ? list : [];
 
-        // Check if new orders arrived to notify the driver
         const activeCount = orderList.filter(
           (o) => o.status !== 'delivered' && o.status !== 'cancelled'
         ).length;
@@ -121,7 +93,6 @@ export default function DeliveryDashboardPage() {
     if (isDelivery || isAdmin) {
       fetchOrders(true);
 
-      // Get store coordinates for map routing
       getStoreInfo()
         .then((res) => {
           const info = res.data?.data || res.data || {};
@@ -199,7 +170,6 @@ export default function DeliveryDashboardPage() {
 
   // Filter Active Orders
   const filteredActiveOrders = activeOrders.filter((order) => {
-    // Status Filter
     if (activeFilter === 'ready') {
       if (order.status !== 'confirmed' && order.status !== 'packing') return false;
     }
@@ -207,7 +177,6 @@ export default function DeliveryDashboardPage() {
       if (order.status !== 'out_for_delivery') return false;
     }
 
-    // Search Query (by order number, phone, customer name)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const orderNum = (order.orderNumber || order._id || order.id || '').toLowerCase();
@@ -231,22 +200,8 @@ export default function DeliveryDashboardPage() {
     return true;
   });
 
-  // Earnings calculation
-  const totalCompletedEarnings = filteredCompletedOrders.reduce((sum, o) => {
-    const fee = typeof o.deliveryFee === 'number' && o.deliveryFee > 0 ? o.deliveryFee : 40;
-    return sum + fee;
-  }, 0);
-
-  if (authLoading || ((!isDelivery && !isAdmin) && !authLoading)) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0C831F]" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className="pb-4">
       {/* Toast Alert Banner */}
       {toastMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-2xl transition flex items-center space-x-2 animate-in fade-in slide-in-from-top-2">
@@ -255,60 +210,19 @@ export default function DeliveryDashboardPage() {
         </div>
       )}
 
-      {/* Main Delivery Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3 shadow-xs">
-        <div className="flex items-center justify-between max-w-3xl mx-auto">
-          <div className="flex items-center space-x-3">
-            <Link
-              href="/"
-              className="p-1.5 -ml-1.5 rounded-xl hover:bg-gray-100 transition text-gray-700 cursor-pointer"
-              title="Return to Store"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <Truck className="w-4 h-4 text-[#0C831F]" />
-                <h1 className="text-base font-black text-gray-900 leading-tight">
-                  Jyothi Mart Delivery
-                </h1>
-              </div>
-              <p className="text-[11px] text-gray-500">
-                Partner Portal • {user?.name || user?.phone || 'Driver'}
-              </p>
-            </div>
-          </div>
-
-          {/* Top Right: Status Badge & Admin Indicator */}
-          <div className="flex items-center gap-2">
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="text-[10px] font-extrabold bg-green-50 text-[#0C831F] hover:bg-green-100 border border-green-200 px-2 py-0.5 rounded-full transition"
-                title="Go to Admin Dashboard"
-              >
-                Admin Mode &rarr;
-              </Link>
-            )}
-            <span
-              className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-                isOnDuty
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-gray-100 text-gray-600 border-gray-200'
-              }`}
-            >
-              {isOnDuty ? '● ONLINE' : '○ OFFLINE'}
-            </span>
-          </div>
-        </div>
-      </header>
-
       {/* Main Container */}
-      <main className="p-4 max-w-3xl mx-auto space-y-4">
+      <div className="p-4 max-w-3xl mx-auto space-y-4">
         {/* Driver Performance & Earnings Card */}
         <DeliveryStatsCard
           isOnDuty={isOnDuty}
-          onToggleDuty={toggleDuty}
+          onToggleDuty={() => {
+            const next = !isOnDuty;
+            setIsOnDuty(next);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('jm_delivery_onduty', String(next));
+            }
+            showToast(next ? 'You are now ON DUTY (Online)' : 'You are now OFF DUTY (Offline)');
+          }}
           orders={orders}
           timeFilter={completedFilter}
           onTimeFilterChange={setCompletedFilter}
@@ -326,7 +240,7 @@ export default function DeliveryDashboardPage() {
             onClick={() => setActiveTab('active')}
             className={`flex-1 py-2.5 text-center text-xs font-extrabold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'active'
-                ? 'bg-[#0C831F] text-white shadow-2xs'
+                ? 'bg-purple-600 text-white shadow-2xs'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -334,7 +248,7 @@ export default function DeliveryDashboardPage() {
             {activeOrders.length > 0 && (
               <span
                 className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                  activeTab === 'active' ? 'bg-white text-[#0C831F]' : 'bg-green-100 text-[#0C831F]'
+                  activeTab === 'active' ? 'bg-white text-purple-600' : 'bg-purple-100 text-purple-600'
                 }`}
               >
                 {activeOrders.length}
@@ -346,7 +260,7 @@ export default function DeliveryDashboardPage() {
             onClick={() => setActiveTab('map')}
             className={`flex-1 py-2.5 text-center text-xs font-extrabold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'map'
-                ? 'bg-[#0C831F] text-white shadow-2xs'
+                ? 'bg-purple-600 text-white shadow-2xs'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -358,7 +272,7 @@ export default function DeliveryDashboardPage() {
             onClick={() => setActiveTab('completed')}
             className={`flex-1 py-2.5 text-center text-xs font-extrabold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'completed'
-                ? 'bg-[#0C831F] text-white shadow-2xs'
+                ? 'bg-purple-600 text-white shadow-2xs'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -378,11 +292,10 @@ export default function DeliveryDashboardPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search order #, customer, or phone..."
-                  className="w-full text-xs pl-9 pr-4 py-2.5 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0C831F]"
+                  className="w-full text-xs pl-9 pr-4 py-2.5 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
 
-              {/* Status Sub-Filters */}
               <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-gray-200">
                 {[
                   { id: 'all', label: 'All' },
@@ -449,7 +362,7 @@ export default function DeliveryDashboardPage() {
           </div>
         )}
 
-        {/* TAB 2: INTERACTIVE ROUTE MAP VIEW (LAZY LOADED) */}
+        {/* TAB 2: INTERACTIVE ROUTE MAP VIEW */}
         {activeTab === 'map' && (
           <div className="space-y-3">
             <div className="bg-white p-3 rounded-2xl border border-gray-200 text-xs text-gray-600 flex items-center justify-between">
@@ -458,8 +371,6 @@ export default function DeliveryDashboardPage() {
               </span>
               <span className="text-[11px] text-gray-500">Tap pin to navigate</span>
             </div>
-
-            {/* Lazy-Loaded Route Map */}
             <DeliveryRouteMap
               orders={activeOrders}
               storeCenter={storeCenter}
@@ -477,11 +388,12 @@ export default function DeliveryDashboardPage() {
                   {completedFilter} Deliveries: {filteredCompletedOrders.length}
                 </span>
                 <p className="text-[11px] text-gray-500">
-                  Total Earned: <strong>{formatPrice(totalCompletedEarnings)}</strong>
+                  Total Earned: <strong>{formatPrice(filteredCompletedOrders.reduce((sum, o) => {
+                    const fee = typeof o.deliveryFee === 'number' && o.deliveryFee > 0 ? o.deliveryFee : 40;
+                    return sum + fee;
+                  }, 0))}</strong>
                 </p>
               </div>
-
-              {/* Time Filter Pills */}
               <div className="flex gap-1">
                 {['today', 'week', 'all'].map((period) => (
                   <button
@@ -489,7 +401,7 @@ export default function DeliveryDashboardPage() {
                     onClick={() => setCompletedFilter(period)}
                     className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
                       completedFilter === period
-                        ? 'bg-[#0C831F] text-white'
+                        ? 'bg-purple-600 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
@@ -520,7 +432,7 @@ export default function DeliveryDashboardPage() {
             )}
           </div>
         )}
-      </main>
+      </div>
 
       {/* OTP Delivery Verification Modal */}
       {selectedOrderForOtp && (

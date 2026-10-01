@@ -27,7 +27,7 @@ export default function CategoriesPage() {
     if (forceRefresh) setLoading(true);
     setError(null);
     try {
-      const res = await getCategories(forceRefresh, null, 5000);
+      const res = await getCategories(forceRefresh, null, 2000);
       const freshList = res.data?.data || res.data || [];
       if (Array.isArray(freshList) && freshList.length > 0) {
         setCategories(freshList);
@@ -37,7 +37,7 @@ export default function CategoriesPage() {
     } catch (err) {
       console.error('Failed to load categories:', err);
       if (categories.length === 0) {
-        setError('Loading timed out (5s limit). Please check your connection.');
+        setError('Loading timed out (2s limit). Please check your connection.');
       }
     } finally {
       setLoading(false);
@@ -53,7 +53,7 @@ export default function CategoriesPage() {
       setLoading(false);
     }
 
-    // 2. Fetch fresh data with 5s timeout
+    // 2. Fetch fresh data with 2s timeout
     loadCategories();
   }, []);
 
