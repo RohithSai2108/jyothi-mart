@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import dynamic from 'next/dynamic';
 import {
   Truck,
   Navigation,
@@ -18,18 +17,7 @@ import {
 } from 'lucide-react';
 import { formatPrice, formatDate, getOrderStatusLabel } from '@/lib/utils';
 
-// Dynamically import map preview for on-demand lazy loading
-const DeliveryRouteMap = dynamic(() => import('./DeliveryRouteMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-48 bg-gray-100 rounded-2xl flex items-center justify-center animate-pulse">
-      <div className="flex items-center gap-2 text-xs text-gray-500 font-bold">
-        <MapPin className="w-4 h-4 text-[#0C831F] animate-bounce" />
-        <span>Loading map preview...</span>
-      </div>
-    </div>
-  ),
-});
+import DeliveryRouteMap from './DeliveryRouteMap';
 
 const STATUS_STYLES = {
   placed: 'bg-yellow-50 text-yellow-700 border-yellow-200',

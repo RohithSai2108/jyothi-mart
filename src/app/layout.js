@@ -7,6 +7,7 @@ import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import CartBar from '@/components/layout/CartBar';
 import LoginModal from '@/components/common/LoginModal';
+import Script from 'next/script';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap', preload: true });
 
@@ -59,6 +60,10 @@ export default function RootLayout({ children }) {
             </CartProvider>
           </LocationProvider>
         </AuthProvider>
+        <Script
+          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCoTlnSpjVx1nAv70I_SWmPN0T5zCusb68&libraries=places,geometry&loading=async"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

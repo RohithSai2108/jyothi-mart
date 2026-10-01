@@ -1,19 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { X, MapPin, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import { useLocation } from '@/context/LocationContext';
 
-// Dynamically import GoogleMapPicker to prevent SSR issues
-const GoogleMapPicker = dynamic(() => import('./GoogleMapPicker'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full min-h-[300px] bg-gray-100 flex flex-col items-center justify-center space-y-2">
-      <Loader2 className="w-8 h-8 text-[#0C831F] animate-spin" />
-      <span className="text-xs font-bold text-gray-500">Loading Google Maps...</span>
-    </div>
-  ),
-});
+import GoogleMapPicker from './GoogleMapPicker';
 
 export default function LocationPickerModal({ isOpen, onClose }) {
   const {

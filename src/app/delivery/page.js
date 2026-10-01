@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import {
   Truck,
   Navigation,
@@ -29,19 +28,7 @@ import DeliveryStatsCard from '@/components/delivery/DeliveryStatsCard';
 import DeliveryOrderCard from '@/components/delivery/DeliveryOrderCard';
 import DeliveryOtpModal from '@/components/delivery/DeliveryOtpModal';
 
-// Dynamically import DeliveryRouteMap for 100% lazy Google Maps script loading
-const DeliveryRouteMap = dynamic(
-  () => import('@/components/delivery/DeliveryRouteMap'),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-[420px] bg-white rounded-3xl border border-gray-200 flex flex-col items-center justify-center p-6 space-y-3">
-        <div className="w-10 h-10 border-3 border-[#0C831F] border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs font-bold text-gray-700">Loading delivery navigation map...</p>
-      </div>
-    ),
-  }
-);
+import DeliveryRouteMap from '@/components/delivery/DeliveryRouteMap';
 
 export default function DeliveryDashboardPage() {
   const { user, isDelivery, isAdmin, loading: authLoading } = useAuth();

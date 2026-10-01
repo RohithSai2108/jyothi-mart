@@ -27,16 +27,7 @@ import { getAdminSettings, updateAdminSettings } from '@/lib/api';
 import { SkeletonText } from '@/components/common/Skeleton';
 import BannerEditModal from '@/components/admin/BannerEditModal';
 import { DEFAULT_HERO_BANNERS } from '@/components/home/HeroBannerCarousel';
-import dynamic from 'next/dynamic';
-
-const GoogleMapPicker = dynamic(() => import('@/components/common/GoogleMapPicker'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-48 bg-gray-100 rounded-xl animate-pulse flex items-center justify-center text-xs text-gray-400">
-      Loading Google Maps...
-    </div>
-  ),
-});
+import GoogleMapPicker from '@/components/common/GoogleMapPicker';
 
 export default function AdminSettingsPage() {
   const { user, isAdmin, loading: authLoading } = useAuth();
