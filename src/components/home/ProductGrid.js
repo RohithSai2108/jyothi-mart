@@ -1,9 +1,38 @@
 'use client';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import ItemCard from '@/components/home/ItemCard';
 import { SkeletonCard } from '@/components/common/Skeleton';
 import { PackageOpen } from 'lucide-react';
 
+const PAGE_SIZE = 40;
+
 export default function ProductGrid({ items = [], loading = false }) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loaderRef = useRef(null);
+
+  // Reset pagination whenever items list changes (new search)
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [items.length]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (!loaderRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, items.length));
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [items.length]);
+
+  const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount]);
+  const hasMore = visibleCount < items.length;
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -26,10 +55,20 @@ export default function ProductGrid({ items = [], loading = false }) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-      {items.map((item) => (
-        <ItemCard key={item._id || item.id} item={item} className="w-full min-w-0 max-w-none" />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        {visibleItems.map((item) => (
+          <ItemCard key={item._id || item.id} item={item} className="w-full min-w-0 max-w-none" />
+        ))}
+      </div>
+      {hasMore && (
+        <div ref={loaderRef} className="flex justify-center py-6">
+          <div className="flex items-center gap-2 text-xs text-gray-400 font-semibold">
+            <span className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-[#0C831F] animate-spin" />
+            Loading more results...
+          </div>
+        </div>
+      )}
+    </>
   );
 }

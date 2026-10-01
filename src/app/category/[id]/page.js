@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -92,6 +92,12 @@ export default function CategoryPage() {
 
   const [loading, setLoading] = useState(() => !currentCategory);
   const [itemsLoading, setItemsLoading] = useState(() => allItems.length === 0);
+
+  // Progressive pagination: render 40 items at a time
+  const PAGE_SIZE = 40;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loaderRef = useRef(null);
+  const lastRevalidateRef = useRef(0);
 
   // Sync searchQuery from URL param if user lands from cross-category link or search
   useEffect(() => {
@@ -188,11 +194,22 @@ export default function CategoryPage() {
     // Initial load
     loadCategoryCatalog(false);
 
-    // Auto-revalidate when tab gains focus or user returns to this tab
-    const handleFocus = () => loadCategoryCatalog(true);
+    // Auto-revalidate at most once per 5 minutes when tab is refocused
+    const REVALIDATE_THROTTLE_MS = 5 * 60 * 1000;
+    const handleFocus = () => {
+      const now = Date.now();
+      if (now - lastRevalidateRef.current > REVALIDATE_THROTTLE_MS) {
+        lastRevalidateRef.current = now;
+        loadCategoryCatalog(true);
+      }
+    };
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        loadCategoryCatalog(true);
+        const now = Date.now();
+        if (now - lastRevalidateRef.current > REVALIDATE_THROTTLE_MS) {
+          lastRevalidateRef.current = now;
+          loadCategoryCatalog(true);
+        }
       }
     };
 
@@ -280,6 +297,30 @@ export default function CategoryPage() {
 
     return sorted;
   }, [subcategoryMatches, inStockOnly, itemTypeFilter, sortBy, searchQuery]);
+
+  // Reset visible count when displayed items change (filter / search change)
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [displayedItems.length, searchQuery, selectedSubcategoryId, sortBy, inStockOnly, itemTypeFilter]);
+
+  // Intersection Observer: load next page when sentinel is visible
+  useEffect(() => {
+    if (!loaderRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, displayedItems.length));
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [displayedItems.length]);
+
+  // Visible slice of items for current page
+  const visibleItems = useMemo(() => displayedItems.slice(0, visibleCount), [displayedItems, visibleCount]);
+  const hasMoreItems = visibleCount < displayedItems.length;
 
   // ── CROSS-CATEGORY DETECTION ENGINE ──
   // If the customer searches for something with 0 results in this category,
@@ -749,15 +790,31 @@ export default function CategoryPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              {displayedItems.map((item) => (
-                <ItemCard
-                  key={item._id || item.id}
-                  item={item}
-                  className="w-full min-w-0 max-w-none"
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                {visibleItems.map((item) => (
+                  <ItemCard
+                    key={item._id || item.id}
+                    item={item}
+                    className="w-full min-w-0 max-w-none"
+                  />
+                ))}
+              </div>
+              {/* Sentinel for infinite scroll */}
+              {hasMoreItems && (
+                <div ref={loaderRef} className="flex justify-center py-6">
+                  <div className="flex items-center gap-2 text-xs text-gray-400 font-semibold">
+                    <span className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-[#0C831F] animate-spin" />
+                    Loading {Math.min(PAGE_SIZE, displayedItems.length - visibleCount)} more...
+                  </div>
+                </div>
+              )}
+              {!hasMoreItems && displayedItems.length > PAGE_SIZE && (
+                <div className="text-center py-4 text-xs text-gray-400 font-medium">
+                  Showing all {displayedItems.length} items
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>

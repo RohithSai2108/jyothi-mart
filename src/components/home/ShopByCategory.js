@@ -1,9 +1,20 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ChevronRight, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronRight } from 'lucide-react';
+import { useCallback } from 'react';
+import { getCatalog } from '@/lib/api';
 
 export default function ShopByCategory({ categories = [], loading = false }) {
+  const router = useRouter();
+
+  // Prefetch category page JS bundle + warm the catalog data cache on hover
+  const handleCategoryHover = useCallback((catId) => {
+    router.prefetch(`/category/${catId}`);
+    // Silently warm the catalog cache for this category in the background
+    getCatalog({ category: catId }).catch(() => {});
+  }, [router]);
+
   if (loading) {
     return (
       <div className="my-6">
@@ -36,7 +47,7 @@ export default function ShopByCategory({ categories = [], loading = false }) {
             <span>Shop by Category</span>
           </h2>
           <p className="text-xs text-gray-500 hidden sm:block mt-0.5">
-            Explore fresh groceries, daily essentials & household items
+            Explore fresh groceries, daily essentials &amp; household items
           </p>
         </div>
         <Link
@@ -58,6 +69,10 @@ export default function ShopByCategory({ categories = [], loading = false }) {
             <Link
               key={catId}
               href={`/category/${catId}`}
+              prefetch={false}
+              onMouseEnter={() => handleCategoryHover(catId)}
+              onFocus={() => handleCategoryHover(catId)}
+              onTouchStart={() => handleCategoryHover(catId)}
               className="group flex flex-col items-center text-center cursor-pointer select-none"
             >
               {/* Card Container with Image */}
